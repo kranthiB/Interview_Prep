@@ -19,8 +19,16 @@
       * EIPs describe problems and solutions and also provide a common vocabulary, but the vocabulary isn't formalized
       * To fill this gap , camel came with language (DSL) to describe solutions
   * *Domain Specific Language (DSL)*  
+      * These are computer languages that target specific problem domain, rather than a general purpose domain like most programming languages
       * DSL is unique as it offers multiple programming languages such as Java / Scala / Groovy.
       * Also offers to be specified in XML
+      * External DSLs
+          * Custom Syntax
+          * Requires Separate Compiler or Interpreter to execute
+      * Internal DSLs
+          * Also referred as Embedded DSLs / Fluent Interfaces (aka Fluent Builders)
+      * Camel's domain is enterprise integration
+          * Java DSL is set of fluent interfaces which contain methods named after terms from EIP book
   * *Extensive Component Library*
       * Components enable Camel to connect over transports / use APIs / understand data formats
   * *Payload-Agnostic Router*
@@ -132,9 +140,7 @@
    
 ```
   **File Copy Sample**
-  
-  CamelContext camelContext = new DefaultCamelContext();
-      
+
   camelContext.addRoutes(new RouteBuilder() {
     @Override
     public void configure() throws Exception {
@@ -142,7 +148,234 @@
     }
   });
 ```
+
+
+
+```
+  **FTP to JMS**
+  **http://camel.apache.org/jms.html**
+  **http://camel.apache.org/ftp2.html**
+  
+  camelContext.addRoutes(new RouteBuilder() {
+      @Override
+      public void configure() throws Exception {
+        from("ftp://rider.com/orders?username=rider&password=secret")
+        .process(new Processor() {
+            public void process(Exchange exchange) throws Exception {
+                System.out.println("we just downloaded: " + exchange.getIn().getHeader("FileName"));
+            }
+          })
+        .to("jms:incomingOrders");
+      }
+  });
+  
+```
+
+### Java DSL vs Spring DSL
+  * Java DSL is slightly richer language to work with as will have full power of language at your fingertips.
+      * Also, features like value builders(for building expressions and predicates) are not available in Spring DSL
+  * Spring DSL provides
+      * Object Construction capabilites
+      * Abstractions for things like database connections / JMS integration
+      * Finding Route Builders
+          * bit more dynamic with 
+              * **packageScan**(*includes / excludes*) (will use **RouteBuilder** class)
+              * **contextScan**(*@Component stereotype) (here have to use **SpringRouteBuilder** class)
+      * Importing Configuration and Routes
+      * Advanced Configuration Options
+          * Pluggable bean registries
+          * Tracer and Delay mechanisms
+          * Custom class resolvers, tracing, fault handling and startup
+          * Configuration of interceptors
+          
+### Routing and EIPs
+
+  * **Content-Based Router**
+  * ```
+    from("file:data/input?noop=true").to("jms:incomingOrders");
+    
+    from("jms:incomingOrders")
+        .choice()
+            .when(header("CamelFileName").endsWith("Xml"))
+                .to("jms:xmlOrders")
+            .when(header("CamelFileName").regex("^.*(csv|csl)$")) ## used regular expression
+                .to("jms:csvOrders")
+            .otherwise() ## used otherwise
+                .to("jms:badOrders").stop() ## stopped when its bad order 
+            .end()
+            .to("jms:continuedProcessing"); # Proceed to this after done through one of the parallel process
+    
+    from("jms:xmlOrders").process(new Processor() {
+        public void process(Exchange exchange) throws Exception {
+            System.out.println("Received XML Order:" + exchange.getIn().getHeader("CamelFileName"));
+        }
+    });
+    
+    from("jms:csvOrders").process(new Processor() {
+        public void process(Exchange exchange) throws Exception {
+            System.out.println("Received CSV Order:" + exchange.getIn().getHeader("CamelFileName"));
+        }
+    });
+    
+    from("jms:badOrders").process(new Processor() {
+        public void process(Exchange exchange) throws Exception {
+            System.out.println("Received Bad Order:" + exchange.getIn().getHeader("CamelFileName"));
+        }
+    });
+    
+    from("jms:continuedProcessing").process(new Processor() {
+        public void process(Exchange exchange) throws Exception {
+            System.out.println("Received Continued Order:" + exchange.getIn().getHeader("CamelFileName"));
+        }
+    });
+    ```
+    * Features
+        * can use regular expression
+        * otherwise
+        * to separate process from the output content routing process 
+        * can stop the flow 
+   * **Message Filter**
+   * ```
+      from("file:data/input?noop=true").to("jms:incomingOrders");
       
+      from("jms:incomingOrders")
+          .choice()
+              .when(header("CamelFileName").endsWith("Xml"))
+                  .to("jms:xmlOrders")
+              .when(header("CamelFileName").regex("^.*(csv|csl)$"))
+                  .to("jms:csvOrders")
+              .otherwise()
+                  .to("jms:badOrders");
+      
+      from("jms:xmlOrders").filter(xpath("/order[not(@test)]")) ## Applied xpath filter
+          .process(new Processor() {
+              public void process(Exchange exchange) throws Exception {
+                  System.out.println("Received XML order: " + exchange.getIn().getHeader("CamelFileName"));
+              }
+          });
+     ```
+   * **Multicast**
+   * ```
+     from("file:data/input?noop=true").to("jms:incomingOrders");
+     
+     from("jms:incomingOrders")
+         .choice()
+            .when(header("CamelFileName").endsWith(".xml"))
+                .to("jms:xmlOrders")
+            .when(header("CamelFileName").regex("^.*(csv|csl)$"))
+                .to("jms:csvOrders")
+            .otherwise()
+                .to("jms:badOrders");
+     
+     ExecutorService executorService = Executors.newFixedThreadPool(16);
+     from("jms:xmlOrders")
+         .multicast()
+              .stopOnException()  ## will stop on exception
+              .parallelProcessing()  ## Initiated Parallel Processing
+                  .executorService(executorService)  ## specfied threads max to 16 instead of 10(default)
+         .to("jms:accounting", "jms:production");
+     
+     from("jms:accounting").process(new Processor() {
+       public void process(Exchange exchange) throws Exception {
+         System.out.println("Accounting received order: " + exchange.getIn().getHeader("CamelFileName"));
+       }
+     });
+     from("jms:production").process(new Processor() {
+       public void process(Exchange exchange) throws Exception {
+         System.out.println("Production received order: " + exchange.getIn().getHeader("CamelFileName"));
+       }
+     });
+     ```
+     *  Features -
+        * stop on exception
+        * can specify number of threads to start 
+   * RecipientList
+   * ```
+     from("file:data/input?noop=true").to("jms:incomingOrders");
+     
+     from("jms:incomingOrders")
+              .choice()
+                 .when(header("CamelFileName").endsWith(".xml"))
+                     .to("jms:xmlOrders")
+                 .when(header("CamelFileName").regex("^.*(csv|csl)$"))
+                     .to("jms:csvOrders")
+                 .otherwise()
+                     .to("jms:badOrders");
+                     
+     from("jms:xmlOrders")
+         .setHeader("customer", xpath("/order/@customer"))
+         .process(new Processor() {
+           public void process(Exchange exchange) throws Exception {
+             String recipients = "jms:accounting";
+             String customer = exchange.getIn().getHeader("customer", String.class);
+             if (customer.equals("honda")) {
+               recipients = ",jms:production";
+             }
+             exchange.getIn().setHeader("recipients", recipients);
+           }
+         })
+         .recipientList(header("recipients"));
+     
+     from("jms:accounting").process(new Processor() {
+       public void process(Exchange exchange) throws Exception {
+         System.out.println("Accounting received order: "
+             + exchange.getIn().getHeader("CamelFileName"));
+       }
+     });
+     
+     from("jms:production").process(new Processor() {
+       public void process(Exchange exchange) throws Exception {
+         System.out.println("Production received order: "
+             + exchange.getIn().getHeader("CamelFileName"));
+       }
+     });
+     ```
+      * Through multi-cast, we can't implement priority
+      * Expression result must be iterable. Values that will work are
+          * java.util.Collection
+          * java.util.Iterator
+          * Java arrays
+          * org.w3c.dom.NodeList
+          * String with comma separated
+          
+      * Recipient List annotation
+        * ```
+          from("jms:xmlOrders").bean(RecipientListBean.class);
+          
+          class RecipientListBean {
+          
+              @org.apache.camel.RecipientList
+              private String[] route(@XPath("/order/@customer") String customer) {
+                if (isGoldCustomer(customer)) {
+                  return new String[]{"jms:accounting", "jms:production"};
+                } else {
+                  return new String[]{"jms:accounting"};
+                }
+              }
+          
+              private boolean isGoldCustomer(String customer) {
+                return customer.equals("honda");
+              }
+            }
+          ```
+   * WireTap
+   *  ```
+      from("file:src/data?noop=true").to("jms:incomingOrders");
+      
+      from("jms:incomingOrders")
+          .wireTap("jms:orderAudit")
+          .choice()
+              .when(header("CamelFileName").endsWith(".xml"))
+                  .to("jms:xmlOrders")
+              .when(header("CamelFileName").regex("^.*(csv|csl)$"))
+                  .to("jms:csvOrders")
+              .otherwise()
+                  .to("jms:badOrders");
+      ```
+      * **wireTap** use *InOnly MEP* pattern
+   
+   
+  
 
 
 
