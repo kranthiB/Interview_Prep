@@ -191,7 +191,7 @@
 ### Routing and EIPs
 
   * **Content-Based Router**
-  * ```
+    ```
     from("file:data/input?noop=true").to("jms:incomingOrders");
     
     from("jms:incomingOrders")
@@ -235,7 +235,7 @@
         * to separate process from the output content routing process 
         * can stop the flow 
    * **Message Filter**
-   * ```
+     ```
       from("file:data/input?noop=true").to("jms:incomingOrders");
       
       from("jms:incomingOrders")
@@ -255,7 +255,7 @@
           });
      ```
    * **Multicast**
-   * ```
+     ```
      from("file:data/input?noop=true").to("jms:incomingOrders");
      
      from("jms:incomingOrders")
@@ -290,7 +290,7 @@
         * stop on exception
         * can specify number of threads to start 
    * RecipientList
-   * ```
+     ```
      from("file:data/input?noop=true").to("jms:incomingOrders");
      
      from("jms:incomingOrders")
@@ -339,7 +339,7 @@
           * String with comma separated
           
       * Recipient List annotation
-        * ```
+        ```
           from("jms:xmlOrders").bean(RecipientListBean.class);
           
           class RecipientListBean {
@@ -359,7 +359,7 @@
             }
           ```
    * WireTap
-   *  ```
+     ```
       from("file:src/data?noop=true").to("jms:incomingOrders");
       
       from("jms:incomingOrders")
