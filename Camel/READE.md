@@ -129,7 +129,19 @@
       * two kinds
           * event-driven (asynchronous receiver in the EIP world)
           * polling (synchronous receiver in the EIP world)
+   
+```
+  ** File Copy Sample  - https://github.com/kranthiB/Interview_Prep/tree/master/Camel/filecopy **
+  
+  CamelContext camelContext = new DefaultCamelContext();
       
+  camelContext.addRoutes(new RouteBuilder() {
+    @Override
+    public void configure() throws Exception {
+      from("file:data/inbox?noop=true).to("file:data/outbox");
+    }
+  });
+```
       
 
 
