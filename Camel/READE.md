@@ -131,7 +131,7 @@
           * polling (synchronous receiver in the EIP world)
    
 ```
-  ** File Copy Sample  - https://github.com/kranthiB/Interview_Prep/tree/master/Camel/filecopy **
+  **File Copy Sample**
   
   CamelContext camelContext = new DefaultCamelContext();
       
