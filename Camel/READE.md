@@ -1009,7 +1009,169 @@
                    
                    onException(IOException.class).retryWhile(bean(MyRetryRuletset.class));
                   ```
-      
+
+### Camel Test Kit - http://camel.apache.org/debugger
+  * *camel-test* - Junit extensions
+      * *org.apache.camel.test.TestSupport* - abstract base test class with additional assertion methods (Junit 3.x)
+      * *org.apache.camel.test.CamelTestSupport* - for testing Camel routes (Junit 3.x)
+      * *org.apache.camel.test.CamelSpringTestSupport* - for testing camel routes defined using SpringDSL. (Junit 3.x)
+      * *org.apache.camel.test.junit4.TestSupport*
+      * *org.apache.camel.test.junit4.CamelTestSupport*
+      * *org.apache.camel.test.junit4.CamelSpringTestSupport*
+      * **Camel Test Support**
+          ```
+          class FirstTest extends CamelTestSupport {
+          
+            public void setUp() throws Exception {
+              super.setUp()
+              deleteDirectory("target/inbox");
+              deleteDirectory("target/outbox");
+            }
+            
+            @Override
+            protected RouteBuilder createRouteBuilder() throws Exception {
+              /*return new RouteBuilder() {
+                @Override
+                public void configure() throws Exception {
+                  from("file://target/inbox").to("file://target/outbox")
+                }
+              };*/
+              
+                          (OR)
+                          
+              return new FileMoveRoute();
+            }
+            
+            @Test
+            public void testMoveFile() throws Exception {
+              template.sendBodyAndHeader("file://target/inbox", "Hello World", Exchange.FILE_NAME, "hello.txt");
+              
+              Thread.sleep(1000);
+              
+              File target = new File("target/outbox/hello.txt");
+              assertTrue("File Not Moved", target.exists());
+              
+              String content = context.getTypeConverter().convertTo(String.class, target);
+              assertEquals("Hello World", content);
+            }
+          }
+          
+          class FileMoveRoute extends RouteBuilder {
+          
+              @Override
+              public void configure() throws Exception {
+                  from("file://target/inbox").to("file://target/outbox");
+              }
+          }
+          ```
+      * **Camel Spring Test Support**
+          ```
+          class SpringFirstTest extends CamelSpringTestSupport {
+          
+            protected AbstractXmlApplicationContext createApplicationContext() {
+              return new classPathXmlApplicationContext("abc.xml");
+            }
+            
+            public void setUp() throws Exception {
+              super.setUp()
+              deleteDirectory("target/inbox");
+              deleteDirectory("target/outbox");
+            }
+              
+            @Test
+            public void testMoveFile() throws Exception {
+              template.sendBodyAndHeader("file://target/inbox", "Hello World", Exchange.FILE_NAME, "hello.txt");
+              
+              Thread.sleep(1000);
+              
+              File target = new File("target/outbox/hello.txt");
+              assertTrue("File Not Moved", target.exists());
+              
+              String content = context.getTypeConverter().convertTo(String.class, target);
+              assertEquals("Hello World", content);
+            }
+          }
+          ```
+      * **Testing in multiple environments**
+          * http://camel.apache.org/properties.html
+          * Spring DSL
+              ```
+              class SpringFirstTest extends CamelSpringTestSupport {
+              
+                private String inboxDir;
+                private String outboxDir;
+                
+                @EndpointInject(uri="file:{{file.inbox}}")
+                private ProducerTemplate inbox;
+                
+                public void setUp() throws Exception {
+                  super.setUp()
+                  inboxDir = context.resolvePropertyPlaceholders("{{file.inbox}}");
+                  outboxDir = context.resolvePropertyPlaceholders("{{file.outbox}}");
+                  deleteDirectory(inboxDir);
+                  deleteDirectory(outboxDir);
+                }
+                
+                protected AbstractXmlApplicationContext createApplicationContext() {
+                  return new classPathXmlApplicationContext(new String[] 
+                    {
+                      "abc-prod.xml",
+                      "abc-test.xml"
+                    });
+                }
+                
+                @Test
+                public void testMoveFile() throws Exception {
+                  inbox.sendBodyAndHeader("file://target/inbox", "Hello World", Exchange.FILE_NAME, "hello.txt");
+                  
+                  Thread.sleep(1000);
+                  
+                  File target = new File(outboxDir+"/hello.txt");
+                  assertTrue("File Not Moved", target.exists());
+                  
+                  String content = context.getTypeConverter().convertTo(String.class, target);
+                  assertEquals("Hello World", content);
+                }
+             
+              }
+              ```
+          * Java DSL
+              ```
+              class CamelRiderJavaDSLProdTest extends CamelTestSupport {
+              
+                   protected CamelContext createCamelContext() throws Exception {
+                      CamelContext context = super.createCamelContext();
+              
+                      PropertiesComponent prop = context.getComponent("properties",
+                                                         PropertiesComponent.class);
+                      prop.setLocation("classpath:rider-prod.properties");
+              
+                      return context;
+                   }
+              
+                   protected RouteBuilder createRouteBuilder() throws Exception {
+                      return new RouteBuilder() {
+                          public void configure() throws Exception {
+                              from("file:{{file.inbox}}").to("file:{{file.outbox}}");
+                          }
+                      };
+                   }
+              }
+              ```
+          
+  * *camel-core* - Mock component / producer template
+      * three basic steps
+          * set expectations
+              * mock endpoint - *org.apache.camel.component.mock.MockEndpoint*
+                  * methods
+                      * expectedMessageCount(int count)
+                      * expectedMinimumMessageCount (int count)
+                      * expectedBodiesReceived (Object... bodies)
+                      * expectedBodiesReceivedInAnyOrder (Object... bodies)
+                      * assertIsSatisfied()
+          * run test
+          * verify result
+  
           
 
 
