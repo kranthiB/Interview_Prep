@@ -749,8 +749,268 @@
                   * Camel built-in types
                   * first parameter assumed as message IN body
                   * all remaining parameters will be unbounded and will pass in empty values
-
-
+                  
+### Understanding Error Handling
+  * Recoverable and irrecoverable errors
+      * recoverable error is represented as plain *Throwable* or *Exception*
+          * *org.apache.camel.Exchange*
+              ```
+               void setException(Throwable cause);
+               Exception getException();
+              ```
+      * irrecoverable error is represented as a message with fault flag
+          ```
+          Message out = exchange.getOut();
+          out.setFault(true);
+          out.setBody("Unknown customer");
+          ```
+  * Where Camel's error handling applies
+      * Camel's error handling does not apply everywhere.
+      * It's handlied during the lifecycle of the exchange.
+      * Before the exchange instantiation, its the component-specific on how to deal with errors
+          * Components like *File, FTP, Mail, iBATIS, RSS, Atom, JPA and SNMP* offers minor error-handling features
+              * these are based on *ScheduledPollConsumer* class, which offers a pluggable *PollingConsulerPollStrategy* that we can use to create our own error-handling strategy.
+                  * http://camel.apache.org/polling-consumer.html
+  * Error handling in Camel
+      * Camel only trigger error handlers when *exchange.getException() != null* 
+      * this won't react to irrecoverable errors
+      * *Error Handlers*
+          * DefaultErrorHandler - automatically enabled if not specifed
+              * Configuration Settings
+                  * No redelivery
+                  * Exceptions are propagated back to the caller
+          * DeadLetterChannel - implements *Dead Letter Channel* EIP
+              * move the failed messages to the dead letter queue
+              * Handling exception by default
+                  * Camel handles exceptions by supression them, it removes the exceptions from the exchange and stores them as properties on the exchange
+                  ```
+                    errorHandler(deadLetterChannel("log:dead?level=ERROR"));
+                    Exception e = exchange.getProperty(Exchange.CAUSED_EXCEPTION,
+                                                       Exception.class);
+                  ```
+              * Using original message with Dead Letter Channel
+                  ```
+                    errorHandler(deadLetterChannel("jms:queue:dead").useOriginalMessage());
+                  ```
+          * TransactionErrorHandler - transaction aware handler
+          * NoErrorHandler - disable error handling
+          * LoggingErrorHandler - logs the exception
+              * defaultly, log the failed message and exception using *org.apache.camel.processor.LoggingErrorHandler* at **ERROR** level
+          * First three error handlers extend the *RedeliveryErrorHandler* class
+      * Features of error handlers
+          * Redelivery policies
+              * Options
+                  * MaximumRedeliveries - int - 0
+                  * RedeliveryDelay - long - 1000
+                  * MaximumRedeliveryDelay - long - 60000
+                  * AsyncDelayedRedelivery - boolean -false
+                  * BackOffMultiplier - double - 2.0 - Exponential backoff multiplier used to multiply each consequent delay. Disabled by default.
+                  * CollisionAvoidanceFactor - double - 0.15 - A percentage to use when calculating a random delay offset. Disabled by default.
+                  * DelayPattern - String - - For instance "0:1000, 5:5000, 10:30000"
+                  * RetryAttemptedLogLevel - LoggingLevel - DEBUG
+                  * RetryExhaustedLogLevel - LoggingLevel - ERROR - used when all redelivery attempts have failed
+                  * LogStackTrace - boolean - true - should be logged when all delivery attempts have failed
+                  * LogRetryStackTrance - boolean - false  - should be logged when a delivery attempt failed
+                  * LogExhausted - boolean - true - specifies exhaustion of redelivery attempts (when all have failed)
+                  * LogHandled - boolean - false - handled exceptions should be logged
+                  ```
+                  errorHandler(defaultErrorHandler()
+                     .maximumRedeliveries(5)
+                     .backOffMultiplier(2)
+                     .retryAttemptedLogLevel(LoggingLevel.WARN)
+                  ```
+              * How does camel know this?
+                  * Stores information in Exchange
+                      * Exchange.REDELIVERY_COUNTER - int
+                      * Exchange.REDELIVERED - boolean
+                      * Exchange.REDELIVERY_EXHAUSTED - boolean
+          * Scope - two possible scopes
+              * context(high level) - this is default
+              ```
+              errorHandler(defaultErrorHandler()
+                  .maximumRedeliveries(5)
+                  .backOffMultiplier(2)
+                  .retryAttemptedLogLevel(LoggingLevel.WARN)
+                  
+              from("direct:hello").beanRef("helloBean","hello");
+              ```
+              * route(low level)
+              ```
+              errorHandler(defaultErrorHandler()
+                  .maximumRedeliveries(5)
+                  .backOffMultiplier(2)
+                  .retryAttemptedLogLevel(LoggingLevel.WARN)
+                  
+              from("direct:hello").beanRef("helloBean","hello");
+              
+              from("file:data/inbox?noop=true)
+                  .errorHandler(deadLetterChannel("log:DLC")
+                      .maximumRedeliveries(5)
+                      .backOffMultiplier(2)
+                      .redeliveryDelay(250)
+                      .retryAttemptedLogLevel(LoggingLevel.WARN)
+                  .to("file:data/outbox");
+              ```
+          * Handling faults
+              * Normal situations, Camel error handler won't react when the fault occurs
+                  * Possible components are *CXF, SOAP, JBI, NMR*
+              * To enable fault handling,
+                  ```
+                    getContext().setHandleFault(true);
+                                  (OR)
+                    from("seda:queue.inbox").handleFault()
+                        .beanRef("orderService", "toSoap")
+                       .to("mock:queue.order");              
+                  ```
+          * Exception policies
+              * policies are specified with the *onException* method in the route
+              * how Camel understands hierarchy
+                  ```
+                  org.apache.camel.RuntimeCamelException (wrapper by Camel)
+                  + com.mycompany.OrderFailedException
+                    + java.net.ConnectException
+                  ```
+                  * it follows bottom-up approach
+                  ```
+                    onException(OrderFailedException.class).maximumRedeliveries(3);
+                  ```
+                  * *onException and Gap Detection*
+                      * with lowest gap as the winner
+                      ```
+                      onException(ConnectException.class)
+                          .maximumRedeliveries(5);
+                      onException(IOException.class)
+                          .maximumRedeliveries(3).redeliveryDelay(1000);
+                      onException(Exception.class)
+                          .maximumRedeliveries(1).redeliveryDelay(5000);
+                      ```
+                      * imagine exception is thrown
+                          ```
+                          org.apache.camel.OrderFailedException
+                          + java.io.FileNotFoundException
+                          ```
+                      * *FileNotFoundException* hierarchy
+                          ```
+                          java.lang.Exception
+                          + java.io.IOException
+                            + java.io.FileNotFoundException
+                          ```
+                          * Gap with IOException is 1 and with Exception is 2 . So *IOException* wins
+                      * *OrderNotFoundException* hierarchy
+                          ```
+                          java.lang.Exception
+                          + OrderNotFoundException
+                          ```
+                          * Gap with Exception is 1. So it wins
+                      * Incase of tie, Camel always pick the first match
+                  * Multiple Exceptions per onException
+                      ```
+                      onException(IOException.class, SQLException.class, JMSException.class)
+                          .maximumRedeliveries(5).redeliveryDelay(3000);
+                      ```
+              * peculiar cases
+                  * default redelivery delay is 1 second
+                  ```
+                  errorHandler(defaultErrorHandler().maximumRedeliveries(3).delay(3000));
+                  
+                  onException(IOException.class).maximumRedeliveries(5);
+                  
+                  from("jetty:http://0.0.0.0/orderservice")
+                      .to("mina:tcp://erp.rider.com:4444?textline=true")
+                      .beanRef("orderBean", "prepareReply");
+                  ```
+                      * In above, delay will be set to 3 seconds as onException we set maximumRedeliveries
+                  ```
+                  errorHandler(defaultErrorHandler().maximumRedeliveries(3).delay(3000));
+                  
+                  onException(IOException.class);
+                  
+                  from("jetty:http://0.0.0.0/orderservice")
+                      .to("mina:tcp://erp.rider.com:4444?textline=true")
+                      .beanRef("orderBean", "prepareReply");
+                  ```
+                      * In above, delay is 0. Camel won't attempt to redelivery
+              * Handling an exception with onException is similar to exception handling in Java(try...catch block)
+                  * regular try..catch block , code won't compile
+                  * doTry...doCatch...doFinally
+                  ```
+                  from("mina:tcp://0.0.0.0:4444?textline=true")
+                      .doTry()
+                          .process(new ValidateOrderId())
+                          .to("jms:queue:order.status")
+                          .process(new GenerateResponse());
+                      .doCatch(JmsException.class)
+                          .process(new GenerateFailureResponse())
+                      .end();
+                  ```
+                  * Using onException to Handle Exceptions
+                  ```
+                  onException(JMSException.class).handled(true).process(new GenerateFailureResponse())
+                  
+                  from("mina:tcp://0.0.0.0:4444?textline=true")
+                      .process(new ValidateOrderId())
+                      .to("jms:queue:order.status")
+                      .process(new GenerateResponse());
+                  ```
+              * Properties on the Exchange related to error handling
+                  * Exchange.EXCEPTION_CAUGHT - Exception
+                  * Exchange.FAILURE_ENDPOINT - String
+                  * Exchange.ERRORHANDLER_HANDLED - boolean
+                  * Exchange.FAILURE_HANDLED - boolean
+                  ```
+                  Exception e = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Exception.class)
+                  ```
+              * Ignoring exceptions
+                  ```
+                  onException(ValidationException.class).continued(true)
+                  ```
+              * even alter the route on Exception
+                  ```
+                  onException(JMSException.class).handled(true).to("ftp://user:password@ftp.com")
+                  ```
+          * Error handling
+              * *onWhen* - to dictate when an exception policy is in use
+                  ```
+                  onException(HttpOperationFailedException.class)
+                      .onWhen(bean(MyHttpUtil.class, "isIllegalData"))
+                      .handled(true)
+                      .to("file:/data/illegal")
+                      
+                  class MyHttpUtil {
+                    public static boolean isIllegalDataError(HttpOperationFailedException cause) {
+                      int code = cause.getStatusCode();
+                      if (code != 500) {
+                        return false;
+                      }
+                      return "ILLEGAL DATA".equals(cause.getResponseBody().toString())
+                    }
+                  }
+                  ```
+              * *onRedeliver* - to execute some code before the message is redelivered
+                  * can be configured on the error handler or on onException
+                  ```
+                  errorHandler(defaultErrorHandler()
+                      .maximumRedeliveries(3)
+                      .onRedeliver(new MyOnRedeliveryProcessor());
+                  
+                  onException(IOException.class)
+                      .maximumRedeliveries(5)
+                      .onRedeliver(new MyOtherOnRedeliveryProcessor());
+                  ```
+              * *retryWhile* - at runtime, determine whether or not to continue redelivery or to give up
+                  ```
+                   class MyRetryRuleset {
+                   
+                   public boolean shouldRetry(
+                                      @Header(Exchange.REDELIVERY_COUNTER) Integer counter,
+                                      Exception causedBy) {
+                       ...
+                   }
+                   
+                   onException(IOException.class).retryWhile(bean(MyRetryRuletset.class));
+                  ```
+      
+          
 
 
 https://github.com/camelinaction/camelinaction
