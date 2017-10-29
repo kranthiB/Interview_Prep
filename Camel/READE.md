@@ -373,6 +373,230 @@
                   .to("jms:badOrders");
       ```
       * **wireTap** use *InOnly MEP* pattern
+      
+### Data Transformation
+  * Data Format Transformation
+  * Data Type Transformation
+  * Features
+      * Data Transformation in routes
+          * Message Translator EIP
+              * equivalent to *Adapter Pattern* from Gang of Four
+              * using a *processor*
+                ```
+                 from("quartz://report?cron=0+0+6+*+*+?")
+                    .to("http://riders.com/orders/cmd=received&date=yesterday")
+                    .process(new OrderToCsvProcessor())
+                    .to("file://riders/orders?fileName=report-${header.Date}.csv");
+                    
+                 class OrderToCSVProcessor implements Processor {
+                    public void process(Exchange exchange) throws Exception {
+                      String custom = exchange.getIn().getBody(String.class);
+                      String id = custom.substring(0,9);
+                      String date = custom.substring(10,19);
+                      String items = custom.substring(30);
+                      String[] itemIds = items.split("@");
+                      
+                      StringBuilder csv = new StringBuilder();
+                      csv.append(id.trim());
+                      csv.append(",").append(date.trim());
+                      csv.append(",").append(customerId.trim());
+                      for(String item : itemIds) {
+                        csv.append(",").append(item.trim());
+                      }
+                      exchange.getIn().setBody(csv.toString());
+                    }
+                 }
+                ```
+                  * using getIn / getOut methods on exchanges
+                      * using *getOut*, incoming message headers and attachments will be lost
+                          * to overcome we need to copy the headers and attachments from incoming to outgoing message, which can be tedious
+                      * so, set the changes directly on incoming message using *getIn*, and not to use *getOut* at all
+                  * disadvantage is required to use Camel API           
+              * using *beans*
+                ```
+                from("quartz://report?cron=0+0+6+*+*+?")
+                    .to("http://riders.com/orders/cmd=received&date=yesterday")
+                    .bean(OrderToCsvBean())
+                    .to("file://riders/orders?fileName=report-${header.Date}.csv");
+                    
+                class OrderToCSVBean {
+                  public static string map(String custom) {
+                      String id = custom.substring(0,9);
+                      String date = custom.substring(10,19);
+                      String items = custom.substring(30);
+                      String[] itemIds = items.split("@");
+                      
+                      StringBuilder csv = new StringBuilder();
+                      csv.append(id.trim());
+                      csv.append(",").append(date.trim());
+                      csv.append(",").append(customerId.trim());
+                      for(String item : itemIds) {
+                        csv.append(",").append(item.trim());
+                      }
+                      exchange.getIn().setBody(csv.toString());
+                  }
+                }
+                ```
+              * using *<transform>*
+                  * Camel is known for *Builder Pattern*
+                    ``` 
+                    from("direct:start")
+                        .transform(body().regexReplaceAll("\n", "<br/>"))
+                        .to("mock:result");
+                    ```
+                  * *Direct* Component
+                      * http://camel.apache.org/direct
+                      * used to do things such as link routes together or for testing
+                        ```
+                        from("direct:start")
+                            .transform(new Expression() {
+                                public <T> T evaluate(Exchange exchange, Class<T> type) {
+                                    String body = exchange.getIn().getBody(String.class);
+                                    body = body.replaceAll("\n", "<br/>");
+                                    body = "<body>" + body + "</body>";
+                                    return (T) body;
+                                }
+                            })
+                            .to("mock:result");
+                        ```
+          * Content Enricher EIP
+              * *pollEnrich*
+                  * merge data retrieved from another source using a consumer
+              * *enrich*
+                  * merge data retrieved from another source using a producer
+              * *file component* can be used in both
+                  * In enrich, will write the message content as file
+                  * In pollEnrich, read the file as source
+              * *HTTP component* only works as enrich
+              * Camel uses *org.apache.camel.processor.AggregationStrategy* to merge the result
+                ```
+                Exchange aggregate(Exchange oldExchange, Exchange newExchange);
+                
+                ```
+                
+                ```
+                from("quartz://report?cron=0+0+6+*+*+?")
+                    .to("http://riders.com/orders/cmd=received&date=yesterday")
+                    .bean(OrderToCsvBean())
+                    .pollEnrich("ftp://riders.com/orders?username=rider&password=secret",
+                          new AggregationStrategy() {
+                              public Exchange aggregate(Exchange oldExchange, Exchange new Exchange) {
+                                  if(newExchange == null) {
+                                      return oldExchange;
+                                  }
+                                  String http = oldExchange.getIn().getBody(String.class);
+                                  String ftp = newExchange.getIn().getBody(String.class);
+                                  String body = http + "\n" + ftp;
+                                  oldExchange.getIn().setBody(body);
+                                  return oldExchange;
+                              }
+                          }
+                    )
+                    .to("file://riders/orders");
+                ```
+              * pollEnrich timeout modes
+                  * pollEnrich(timeout = -1)
+                      * waits until message arrives
+                  * pollEnrich(timeout = 0)
+                      * immediately polls if message exists
+                      * otherwise null is returned
+                      * never wait for the message
+                  * pollEnrich(timeout = >0)
+              * Neither *enrich* nor *pollEnrich* can't access any information in the current exchange
+                  * for instance, you can't store a filename header on the exchange for *pollEnrich* to use to select a particular file
+      * Data Transformation using components
+          * Transforming XML
+              * XSLT component
+                  * XSLT
+                      * declarative XML-based language used to transform XML documents to other documents
+                      * for instance, XSLT can be used to transform XML to HTML / to another XML with different structure.
+                  * this component available in *camel-spring.jar*
+                  ```
+                  from("file://rider/inbox")
+                      .to("xslt://folder/transform.xsl")
+                      .to("activemq:queue:transformed")
+                  ```
+                  * **xslt://folder/transform.xsl** - *none prefix* - loads from the classpath
+                  * **xslt://classpath:com/camel/transform.xsl** - *classpath prefix- loads from the classpath
+                  * **xslt://file:/folder/transform.xsl** - *file prefix- loads from the filesystem
+                  * **xslt://http://url/transform.xsl** - *http prefix- loads from the URL   
+              * XML Marshaling
+                  * XStream
+                      * library for serializing objects to XML and back again
+                      * available in *camle-xstream.jar*
+                      ```
+                      from("direct:foo").marshal().xstream().to("uri:activemq:queue:foo");
+                      from("uri:activemq:queue:foo").unmarshal().sxstream().to("direct:handleFoo");
+                      ```
+                  * JAXB
+                      * Java Architecutre for XML Bindings
+                      * serializing objects to XML and back again
+                      * No special JAR required as it's distributed in Java
+                      * *@XmlRootElement*
+                      * *@XmlAccessorType*
+                      * *@XmlAttribute*
+      * Data Transformation using data formats
+          * *org.apache.camel.spi.DataFormat*
+              * *marshal*
+              * *unmarshal*
+          * *Data formats* 
+              * *camel-bindy* - *CSV/FIX, fixed length* 
+                  * *@CsvRecord*
+                  * *@DataField* - *pos, precision, pattern, length, trim*
+                  * *Data Types*
+                      * *marshal - List<Map<String, Object>> - OutputStream*
+                      * *unmarshal - InputStream - List<Map<String, Object>>
+                  ```
+                  from("direct:toCsv").marshal().bindy(BindyType.Csv, "<package>").to("mock:result")
+                  ```
+              * *camel-castor* - *XML*
+              * *camel-crypto* - *Any*
+              * *camel-csv* - *CSV*
+                  ```
+                  from("file://rider/csvfiles").unmarshal().csv().split(body()).to(activemq:queue.csv.record")
+                  ```
+                  * *Splitter EIP*  
+                      * break the java.util.List<List<String>> in to rows(List<String>)
+                  * *Data Types*
+                      * *marshal - Map<String, Object> - OutputStream*
+                      * *marshal - List<Map<String, Object>> - OutputStream*
+                      * *unmarshal - InputStream - List<List<String>>*
+                  * problem is it uses generic data types such as Maps/ Lists to represent CSV records
+                  * old library which will not take advantage of annotations and generics in java
+              * *camel-flatpack* - *CSV*
+                  * old library which will not take advantage of annotations and generics in java
+              * *camel-gzip* - *Any*
+              * *camel-hl7* - *HL7* - well-known format in health care industry
+              * *camel-jaxb* - *XML*
+              * *camel-jackson* - *JSON*
+              * *camel-protobuf* - *XML*
+              * *camel-soap* - *XML*
+              * *camel-core* - *Object* - java object serialization
+              * *camel-tagsoup* - *HTML*
+              * *camel-xmlbeans* - *XML*
+              * *camel-xmlsecurity*  - *XML*
+              * *camel-xstream* - *XML/JSON*
+          * http://camel.apache.org/data-format.html 
+      * Data Transformation using templates
+          * Apache Velocity
+              * http://camel.apache.org/velocity.html
+          * FreeMarker
+              * http://camel.apache.org/freemarker.html)
+      * Data Type Transformation using Camel's type converter mechanism
+          * *TypeConverterRegistry* 0..n *TypeConverter
+            ```
+            <T> T convertTo(Class<T> type, Object value)
+            ```
+          * Loading Type Convertes into Registry
+              * *org.apache.camel.impl.converter.AnnotationTypeConverterLoader*
+                  * to avoid scanning zillions of classes
+                      * reads a service discovery file in the META-INF folder: META-INF/services/org/apache/camel/TypeConverter
+                          * this is plain text file that has all list of packages that contain Camel type converters
+                  * also searches for classes and public methods that are annotated with @Converter
+          ```
+          from("file://riders/inbox").convertBodyTo(String.class).to("activemq:queue:inbox");
+          ```
+      * Message Transformation in component adapters
    
    
   
