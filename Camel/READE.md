@@ -597,9 +597,158 @@
           from("file://riders/inbox").convertBodyTo(String.class).to("activemq:queue:inbox");
           ```
       * Message Transformation in component adapters
-   
-   
-  
+
+### Using Beans
+  * in easy way
+      ```
+      from("direct:hello").beanRef("helloBean","hello");
+                             (OR)
+      from("direct:hello").beanRef("helloBean");  // if only one method then can remove second parameter
+                             (OR)
+      from("direct:hello").bean(HelloBean.class); //don't have to preregister the bean in the registry
+      
+      class HelloBean { 
+        public String hello(String name) {
+           return "Hello " + name;
+        }
+      }
+      ```
+  * **Service Activator Pattern**
+      * It describes a service that can be invoked easily from both messaging and non-messaging services
+      * *Camel Bean Component*, which eventually uses *org.apache.camel.component.bean.BeanProcessor*
+  * **Camel's Bean Registry**
+      * Serivce Provider Interface (**SPI**) defined in *org.apache.camel.spi.Registry*
+          ```
+          Object lookup(String name);
+          <T> T lookup(String name, Class<T> type);
+          <T> Map<String, T> lookupByType(Class<T> type)
+          ```
+          
+          ```
+          HelloBean hello = (HelloBean) context.getRegistry().lookup("helloBean");
+                                    (OR)
+          HelloBean hello = context.getRegistry().lookup("helloBean", HelloBean.class);
+          ```
+          * Last method is mostly used internally by camel to support convention over configuration
+      * Registry Implementations shipped with Camel
+          * *SimpleRegistry* - is a map based registry, used when unit testing or in the Google App engine; where only a limited number of JDK classes are available
+           
+            ```
+            class SimpleRegistryTest extends TestCase {
+              private CamelContext context;
+              private ProducerTemplate template;
+              
+              protected void setUp() throws Exception {
+                  SimpleRegistry registry = new SimpleRegistry();
+                  registry.put("helloBean", new HelloBean());
+                  
+                  context = new DefaultCamelContext(registry);
+                  template = context.createProducerTemplate();
+                  
+                  context.addRoutes(new RouteBuilder() {
+                      public void configure() throws Exception {
+                          from("direct:hello").beanRef("helloBean");
+                      }
+                  });
+                  
+                  context.start();
+              }
+              
+              protected void tearDown() throws Exception {
+                template.stop();
+                context.stop();
+              }
+              
+              public void testHello() throws Exception {
+                Object reply = template.requestBody("direct:hello", "World");
+                assertEquals("Hello World", reply);
+              }
+            }
+            ```
+                
+          * *JndiRegistry* - uses an existing Java Naming and Directory Interface registry to look up beans
+              * is the default registry
+              ```
+              protected CamelContext createCamelContext() throws Exception {
+                Hashtable env = new Hashtable();
+                env.put(Context.INITIAL_CONTEXT_FACTORY, "com.ibm.websphere.naming.WsnInitialContextFactory");
+                env.put(Context.PROVIDER_URL, "corbaloc:iiop:myhost.mycompany.com:2809");
+                env.put(Context.SECURITY_PRINCIPAL, "username");
+                env.put(Context.SECURITY_CREDENTIALS, "password");
+                
+                Context context = new InitialContext(env);
+                JndiRegistry jndi = new JndiRegistry(context);
+                
+                return new DefaultCamelContext(jndi);
+              }
+              ```
+          * *ApplicationContextRegistry* - works with Spring to look up beans in the Spring ApplicationContext
+          * *OsgiServiceRegistry* - looking up beans in the OSGi service interface registry
+  * **Selecting Bean Methods**
+      * Look up the bean in the registry
+      * Selects the method to invoke on the bean
+      * Binds to the parameters of the selected method
+      * Invokes the method
+      * Handles any invocation erros that occur
+      * Sets the method's reply as the body on the output message on the camel exchange
+      * **Camel's method-selection algorithm**
+          1. Camel message contains a header with key *CamelBeanMethodName* , go to step-e
+          2. If method is explicitly defined, go to step-e
+          3. Can message body be converted to a processor? If so, invoke the processor and stop, else, go to step-d
+          4. Is message body a *BeanInvocation* instance? yes : invoke bean and stop, no : go to step-e
+          5. Does at least one method exist with that name? yes : go to step-f, no: throw **MethodNotFoundException**
+          6. Is there only one method marked with @Handler annotation? yes : go to step-j, no : go to step-g
+          7. Is there only one method marked with other kinds of camel annotations? yes go to step-j: , no : go to step-h
+          8. Is there only one method with a single parameter? yes : go to step-j, no : go to step-i
+          9. Find best matching method and is there a single best matching method? yes : go to step-j, no : throw **AmbigiousMethodCallException**
+          10. Return selected method and stop 
+          * Other possible exception is **NoTypeConversionAvailableException**
+      * **Bean Parameter Binding**
+          * Binding with multiple parameters
+              * Binding using built-in types
+                  * Exchange
+                  * Message
+                  * CamelContext
+                  * TypeConverter
+                  * Registry
+                  * Exception
+              ```
+                public String echo(String echo, CamelContext context)
+                                    (OR)
+                public String echo(String echo, Registry registry) 
+                                    (OR)
+                public String echo(String echo, CamelContext context, Registry registry)                     
+              ```
+              * Binding using Camel annotations
+                  * @Attachments
+                  * @Body
+                  * @Header(name)
+                  * @Headers - java.util.Map
+                  * @OutHeaders - will be sed in **InOut** MEP style
+                  * @Property(name)
+                  * @Properties - java.util.Map
+                  ```
+                    public String orderStatus(@Body Integer orderId, @Headers Map headers)
+                  ```
+              * Binding using Camel language annotations
+                  * @Bean - *camel-core* - Invokes method on a bean
+                  * @BeanShell - *camel-script* - Evaluates a bean shell script
+                  * @EL - *camel-juel* - Evaluates an EL script(unifie JSP and JSF scripts)
+                  * @Groovy - *camel-script* - Evaluates a groovy script
+                  * @JavaScript - *camel-script* - Evaluates a JavaScript script
+                  * @MVEL - *camel-mvel* - Evaluates a MVEL script
+                  * @OGNL - *camel-ognl* - Evaluates a OGNL script
+                  * @PHP - *camel-script* - Evaluates a PHP script
+                  * @Python - *camel-script* - Evaluates a Python script
+                  * @Ruby - *camel-script* - Evaluates a Ruby script
+                  * @Simple - *camel-core* - Evaluates a simple expression
+                  * @XPath - *camel-core*- Evaluates an XPath expression
+                  * @XQuery - *camel-saxon* - Evaluates and XQuery expression
+              * **Rules**
+                  * Camel annotations
+                  * Camel built-in types
+                  * first parameter assumed as message IN body
+                  * all remaining parameters will be unbounded and will pass in empty values
 
 
 
