@@ -437,7 +437,7 @@
                   }
                 }
                 ```
-              * using *<transform>*
+              * using *transform*
                   * Camel is known for *Builder Pattern*
                     ``` 
                     from("direct:start")
