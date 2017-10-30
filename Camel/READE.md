@@ -433,7 +433,7 @@
                       for(String item : itemIds) {
                         csv.append(",").append(item.trim());
                       }
-                      exchange.getIn().setBody(csv.toString());
+                      return csv.toString();
                   }
                 }
                 ```
