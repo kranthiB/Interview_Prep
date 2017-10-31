@@ -1376,6 +1376,57 @@
             * methods to control responses when simulating a real component
               * whenAnyExchangeReceived (Processor processor)	- Uses a custom processor to set a canned reply
               * whenExchangeReceived (int index, Processor processor)	- Uses a custom processor to set a canned reply when the n’th message is received
+            * simulation can be done by replacing actual endpoint with *mock:miranda*. 
+            ```
+             public class MirandaTest extends CamelTestSupport {
+               private String url = "http://localhost:9080/service/order?id=123;
+               
+               @Override
+               protected RouteBuilder createRouteBuilder() throws Exception {
+                 return new RouteBuilder() {
+                   
+                   @Override
+                   public void configure() throws Exception {
+                     from("jetty:http://localhost:9080/service/order")
+                       .process(new OrderQueryProcessor())
+                       .to("mock:miranda")
+                       .process(new OrderResponseProcessor());
+                   }
+                 };
+               }
+               
+               @Test
+               public void testMiranda() throws Exception {
+                 MockEndpoint mock = getMockEndpoint("mock:miranda");
+                 mock.expectedBodiesReceived("ID=123");
+                 mock.whenAnyExchangeReceived(new Processor() {
+                    public void process(Exchange exchange) throws Exception {
+                      exchange.getIn().setBody("ID=123,STATUS=IN PROGRESS");
+                    }
+                 });
+                 
+                 String out = template.requestBody(url, null, String.class);
+                 assertEquals("IN PROGRESS", out);
+                 
+                 assertMockEndpointsSatisfied();
+               }
+               
+               private class OrderQueryProcessor implements Processor {
+                 public void process(Exchange exchange) throws Exception {
+                   String id = exchange.getIn().getHeader("id", String.class);
+                   exchange.getIn().setBody("ID=" + id);
+                 }
+               }
+               
+               private class OrderResponseProcessor implements Processor {
+                 public void process(Exchange exchange) throws Exception {
+                   String body = exchange.getIn().getBody(String.class);
+                   String reply = ObjectHelper.after(body, "STATUS=");
+                   exchange.getIn().setBody(reply)
+                 }
+               }
+             }
+            ```
 
 
 https://github.com/camelinaction/camelinaction
