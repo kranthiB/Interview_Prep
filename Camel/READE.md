@@ -1427,6 +1427,173 @@
                }
              }
             ```
+      * Simulating Errors
+        * Three techniques for simulating errors
+          * Processor
+            * Using processors is easy, and they give you full control, as a developer
+            ```
+              errorHandler(defaultErrorHandler()
+                  .maximumRedeliveries(5).redeliveryDelay(10000));
+
+              onException(IOException.class).maximumRedeliveries(3)
+                  .handled(true)
+                  .to("ftp://gear@ftp.rider.com?password=secret");
+
+              from("file:/rider/files/upload?delay=1h")
+                  .to("http://rider.com?user=gear&password=secret");
+            ```
+            ```
+             errorHandler(defaultErrorHandler()
+                 .maximumRedeliveries(5).redeliveryDelay(1000));
+
+             onException(IOException.class).maximumRedeliveries(3)
+                 .handled(true)
+                 .to("mock:ftp");
+
+             from("direct:file")
+                    .to("mock:http");
+            ```
+            ```
+             from("direct:file")
+                .process(new Processor()) {
+                    public void process(Exchange exchange) throws Exception {
+                        throw new ConnectException("Simulated connection error");
+                    }
+                })
+                .to("mock:http");
+            ```
+            ```
+             @Test
+             public void testSimulateConnectionError() throws Exception {
+                 getMockEndpoint("mock:http").expectedMessageCount(0);
+
+                 MockEndpoint ftp = getMockEndpoint("mock:ftp");
+                 ftp.expectedBodiesReceived("Camel rocks");
+
+                 template.sendBody("direct:file", "Camel rocks");
+
+                 assertMockEndpointsIsSatisfied();
+             }
+            ```
+            * Using this is easy but have to alter the route to insert the Processor
+          * Mock
+            * Using mocks is a good overall solution. Mocks are fairly easy to apply, and they provide a wealth of other features for testing
+            ```
+             @Test
+             public void testSimulateConnectionErrorUsingMock() throws Exception {
+                 getMockEndpoint("mock:ftp").expectedMessageCount(1);
+
+                 MockEndpoint http = getMockEndpoint("mock:http");
+                 http.whenAnyExchangeReceived(new Processor() {
+                     public void process(Exchange exchange) throws Exception {
+                         throw new ConnectException("Simulated connection error");
+                     }
+                 });
+
+                 template.sendBody("direct:file", "Camel rocks");
+
+                 assertMockEndpointsSatisfied();
+             }
+            ```
+          * Interceptor
+            * This is the most sophisticated technique because it allows you to use an existing route without modifying it. Interceptors aren’t tied solely to testing; they can be used anywhere and anytime
+            * Three flavors of interceptor provided out of the box in Camel
+              * intercept - Intercepts every single step a message takes. This interceptor is invoked continuously as the message is routed.
+              * interceptFromEndpoint - Intercepts incoming messages arriving on a particular endpoint. This interceptor is only invoked once.
+              * interceptSendToEndpoint - Intercepts messages that are about to be sent to a particular endpoint. This interceptor is only invoked once.
+              ```
+              interceptSendToEndpoint("http://rider.com/rider")
+                  .skipSendToOriginalEndpoint();
+                  .process(new SimulateHttpErrorProcessor());
+              ```
+              * Last two interceptors supports using wildcards(*) and regular expressions in the endpoint URL
+              * with out changing the original route , camel provides the *adviceWith* method to address.
+                ```
+                  @Test
+                  public void testSimulateErrorUsingInterceptors throws Exception {
+                    RouteDefinition route = context.getRouteDefinitions().get(0);
+                    
+                    route.adviceWith(context, new RouteBuilder() {
+                      public void configure() throws Exception {
+                        interceptSendToEndpoint("http://*")
+                           .skipSendToOriginalEndpoint();
+                           .process(new SimulateHttpErrorProcessor());
+                      }
+                    });
+                  }
+                ```
+                * In case of multiple routes, select the route by ID ( by assigning it) 
+                  ```
+                   context.getRouteDefinition("myCoolRoute").
+                  ```
+              * Interceptors are not only for simulating errors. They can be used for other types of testing. For instance, when you are testing production routes, you can use interceptors to detour messages to mock endpoints.
+          * Integratiion testing with out mocks
+            * three tasks
+              * Use the client to send message
+              * Wait for the Camel application to process the message
+                ```
+                NotifyBuilder notify = new NotifyBuilder(context).whenDone(1).create();
+
+                OrderClient client = new OrderClient("tcp://localhost:61616");
+                client.sendOrder(123, date, "4444", "5555");
+
+                boolean matches = notify.matches(5, TimeUnit.SECONDS);
+                assertTrue(matches);
+                ```
+                  * notify instance will cause test to wait until the condition applies or the 5-second timeout occurs
+              * Inspect the final producer enpoint to see if the message arrived as expected
+                ```
+                BrowsableEndpoint be = context.getEndpoint("activemq:queue:confirm",
+                                           BrowsableEndpoint.class);
+                List<Exchange> list = be.getExchanges();
+                assertEquals(1, list.size());
+                String body = list.get(0).getIn().getBody(String.class);
+                assertEquals("OK,123,2010-04-20T15:47:58,4444,5555", body);
+                ```
+            * NotifyBuilder
+              * *org.apache.camel.builder* package
+              * uses *Builder* pattern
+                * means stack methods on it to build an expression
+                * Simple Condition
+                  ```
+                  NotifyBuilder notify = new NotifyBuilder(context).whenDone(1).create();
+                  ```
+                * In case of multiple routes
+                  ```
+                  NotifyBuilder notify = new NotifyBuilder(context).from("activemq:queue:order").whenDone(1).create();
+                  ```
+                * If you want to test whether a specific message was processed (in case of multiple messages)
+                  ```
+                  NotifyBuilder notify = new NotifyBuilder(context)
+                      .from("activemq:queue:order").whenAnyDoneMatches(
+                       body().isEqualTo("OK,123,2010-04-20'T'15:48:00,2222,3333"))
+                      .create();
+                  ```
+                * Commonly used methods
+                  * from(uri)	- Specifies that the message must originate from the given endpoint. You can use wildcards and regular expressions in the given URI to match multiple endpoints. For example, you could use from ("activemq:queue:\*") to match any JMS queues.
+                  * filter(predicate)	- Filters unwanted messages.                  
+                  * whenDone(number)	- Matches when a minimum number of messages are done.
+                  * whenCompleted(number)	- Matches when a minimum number of messages are completed.
+                  * whenFailed(number)	- Matches when a minimum number of messages have failed
+                  * whenBodiesDone(bodies...)	- Matches when messages are done with the specified bodies in the given order.
+                  * whenAnyDoneMatches (predicate)	- Matches when any message is done and matches the predicate.
+                  * create	- Creates the notifier.
+                  * matches	- Tests whether the notifier currently matches. This operation returns immediately.
+                  * matches(timeout)- 	Waits until the notifier matches or times out. Returns true if it matched, or false if a timeout occurred.
+              * http://camel.apache.org/notifybuilder.html
+              * The NotifyBuilder works in principle by adding an EventNotifier to the given CamelContext
+                * EventNotifier then invokes callbacks during the routing of exchanges
+                * This allows the NotifyBuilder to listen for those events and react accordingly
+              * three ways to identify a message can complete
+                * Done — This means the message is done, regardless of whether it completed or failed.
+                * Completed — This means the message completed with success (no failure).
+                * Failed — This means the message failed (for example, an exception was thrown and not handled).
+                * *whenDone, whenCompleted, and whenFailed*
+              * to be notified of different conditions
+                * can create multiple instances of NotifyBuilder
+                * also supports using binary operators (and / or / not) to stack together multiple conditions
+                  
+                
 
 
 https://github.com/camelinaction/camelinaction
