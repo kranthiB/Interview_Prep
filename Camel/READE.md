@@ -1082,6 +1082,7 @@
             public void testMoveFile() throws Exception {
               template.sendBodyAndHeader("file://target/inbox", "Hello World", Exchange.FILE_NAME, "hello.txt");
               
+              // Camel scans twice per second. For safer purpose , made the program to sleep for 1 second
               Thread.sleep(1000);
               
               File target = new File("target/outbox/hello.txt");
@@ -1093,72 +1094,120 @@
           }
           ```
       * **Testing in multiple environments**
-          * http://camel.apache.org/properties.html
-          * Spring DSL
-              ```
-              class SpringFirstTest extends CamelSpringTestSupport {
-              
-                private String inboxDir;
-                private String outboxDir;
-                
-                @EndpointInject(uri="file:{{file.inbox}}")
-                private ProducerTemplate inbox;
-                
-                public void setUp() throws Exception {
-                  super.setUp()
-                  inboxDir = context.resolvePropertyPlaceholders("{{file.inbox}}");
-                  outboxDir = context.resolvePropertyPlaceholders("{{file.outbox}}");
-                  deleteDirectory(inboxDir);
-                  deleteDirectory(outboxDir);
+          * Camel Properties Component (OR) Spring property placeholders
+             * Camel Properties component has a few noteworthy improvements
+                * built in camel-core JAR
+                * can be used in all DSL(like Java DSL)
+                * supports placeholders in property files
+                * for more info - http://camel.apache.org/properties.html
+                ```
+                <bean id="properties" class="org.apache.camel.component.properties.PropertiesComponent">
+                    <property name="location" value="classpath:prod.properties"/>
+                </bean>
+                ```
+                * prod.properties
+                ```
+                file.inbox=rider/files/inbox
+                file.outbox=rider/files/outbox
+                ```
+                ```
+                <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+                    <route>
+                        <from uri="{{file.inbox}}"/>
+                        <to uri="{{file.outbox}}"/>
+                    </route>
+                </camelContext>
+                                      (OR)
+                <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+                    <propertyPlaceholder id="properties"
+                                         location="classpath:rider-prod.properties"/>
+                    <route>
+                        <from uri="{{file.inbox}}"/>
+                        <to uri="{{file.outbox}}"/>
+                    </route>
+                </camelContext>
+                ```
+                * Camel uses the {{key}} syntax where as Spring uses {key} syntax
+                * Spring DSL
+                ```
+                class SpringFirstTest extends CamelSpringTestSupport {
+
+                  private String inboxDir;
+                  private String outboxDir;
+
+                  @EndpointInject(uri="file:{{file.inbox}}")
+                  private ProducerTemplate inbox;
+
+                  public void setUp() throws Exception {
+                    super.setUp()
+                    inboxDir = context.resolvePropertyPlaceholders("{{file.inbox}}");
+                    outboxDir = context.resolvePropertyPlaceholders("{{file.outbox}}");
+                    deleteDirectory(inboxDir);
+                    deleteDirectory(outboxDir);
+                  }
+
+                  protected AbstractXmlApplicationContext createApplicationContext() {
+                    return new classPathXmlApplicationContext(new String[] 
+                      {
+                        "abc-prod.xml",
+                        "abc-test.xml"
+                      });
+                  }
+
+                  @Test
+                  public void testMoveFile() throws Exception {
+                    inbox.sendBodyAndHeader("file://target/inbox", "Hello World", Exchange.FILE_NAME, "hello.txt");
+
+                    Thread.sleep(1000);
+
+                    File target = new File(outboxDir+"/hello.txt");
+                    assertTrue("File Not Moved", target.exists());
+
+                    String content = context.getTypeConverter().convertTo(String.class, target);
+                    assertEquals("Hello World", content);
+                  }
+
                 }
-                
-                protected AbstractXmlApplicationContext createApplicationContext() {
-                  return new classPathXmlApplicationContext(new String[] 
-                    {
-                      "abc-prod.xml",
-                      "abc-test.xml"
-                    });
+                ```
+                * Java DSL
+                ```
+                class CamelRiderJavaDSLProdTest extends CamelTestSupport {
+
+                     protected CamelContext createCamelContext() throws Exception {
+                        CamelContext context = super.createCamelContext();
+
+                        PropertiesComponent prop = context.getComponent("properties",
+                                                           PropertiesComponent.class);
+                        prop.setLocation("classpath:rider-prod.properties");
+
+                        return context;
+                     }
+
+                     protected RouteBuilder createRouteBuilder() throws Exception {
+                        return new RouteBuilder() {
+                            public void configure() throws Exception {
+                                from("file:{{file.inbox}}").to("file:{{file.outbox}}");
+                            }
+                        };
+                     }
                 }
-                
-                @Test
-                public void testMoveFile() throws Exception {
-                  inbox.sendBodyAndHeader("file://target/inbox", "Hello World", Exchange.FILE_NAME, "hello.txt");
+                ```
+                * To encyrpt / decrypt passwords in text file, we can leverage using **camel-jaspyt** component
+             * Spring Property Placeholders
+               ```
+               <context:property-placeholder properties-ref="properties"/>
+               <util:properties id="properties"  location="classpath:prod.properties"/>
+               
+               <camelContext id="camel" xmlns="http://camel.apache.org/schema/spring">
+                  <endpoint id="inbox" uri="file:{file.inbox}/>
+                  <endpoint id="outbox" uri="file:{file.outbox}/>
                   
-                  Thread.sleep(1000);
-                  
-                  File target = new File(outboxDir+"/hello.txt");
-                  assertTrue("File Not Moved", target.exists());
-                  
-                  String content = context.getTypeConverter().convertTo(String.class, target);
-                  assertEquals("Hello World", content);
-                }
-             
-              }
-              ```
-          * Java DSL
-              ```
-              class CamelRiderJavaDSLProdTest extends CamelTestSupport {
-              
-                   protected CamelContext createCamelContext() throws Exception {
-                      CamelContext context = super.createCamelContext();
-              
-                      PropertiesComponent prop = context.getComponent("properties",
-                                                         PropertiesComponent.class);
-                      prop.setLocation("classpath:rider-prod.properties");
-              
-                      return context;
-                   }
-              
-                   protected RouteBuilder createRouteBuilder() throws Exception {
-                      return new RouteBuilder() {
-                          public void configure() throws Exception {
-                              from("file:{{file.inbox}}").to("file:{{file.outbox}}");
-                          }
-                      };
-                   }
-              }
-              ```
-          
+                  <route>
+                    <from ref="inbox"/>
+                    <to ref="outbox"/>
+                  </route>
+               </camelContext>
+               ```
   * *camel-core* - Mock component / producer template
       * three basic steps
           * set expectations
