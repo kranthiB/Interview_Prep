@@ -1218,10 +1218,164 @@
                       * expectedBodiesReceived (Object... bodies)
                       * expectedBodiesReceivedInAnyOrder (Object... bodies)
                       * assertIsSatisfied()
+                         * method runs for 10 seconds before timining out
+                         * use *setResultWaitTime(long timeInMillis)* to change wait time
+                      * assertIsNotSatisfied()
+              ```
+              class FirstMockTest extends CamelTestSupport {
+          
+                 @Override
+                 protected RouteBuilder createRouteBuilder() throws Exception {
+                   return new RouteBuilder() {
+                     @Override
+                     public void configure() throws Exception {
+                       from("jms:topic:quote").to("mock:quote")
+                     }
+                   };
+                 }
+            
+                 @Test
+                 public void testQuote() throws Exception {
+                   MockEndPoint quote = getMockEndpoint("mock:quote");
+                   quote.expectedMessageCount(1);
+                   
+                   template.sendBody("jms:topic:quote", "Camel rocks");
+                   
+                   quote.assertIsSatisfied();
+                 }
+              }          
+              ```
+              * to simulate JMS, we can register SEDA component as the JMS component
+                * http://camel.apache.org/seda.html.
+                ```
+                @Override
+                protected CamelContext createCamelContext() throws Exception {
+                    CamelContext context = super.createCamelContext();
+                    context.addComponent("jms", context.getComponent("seda"));
+                    return context;
+                }
+                ```
           * run test
           * verify result
-  
-          
+            * to verify certain number of messages - *expectedMessageCount* can be used
+            * to verify content , use *expectedBodiesReceived* or *expectedBodiesReceivedInAnyOrder*
+              ```
+              @Test
+              public void testQuotes() throws Exception {
+                  MockEndpoint mock = getMockEndpoint("mock:quote");
+                  mock.expectedBodiesReceived("Camel rocks", "Hello Camel");
+                                        (OR)
+                  mock.expectedBodiesReceivedInAnyOrder("Camel rocks", "Hello Camel");
+                                        (OR)
+                  List bodies = ...
+                  mock.expectedBodiesReceived(bodies);
+                  
+                  template.sendBody("jms:topic:quote", "Camel rocks");
+                  template.sendBody("jms:topic:quote", "Hello Camel");
+
+                  mock.assertIsSatisfied();
+              }
+              ```
+              * Using expressions with mocks
+                * Expression based methods on MockEndpoint
+                  * message(int index) - Defines an expectation on the n’th message received
+                    ```
+                    @Test
+                    public void testIsCamelMessage() throws Exception {
+                        MockEndpoint mock = getMockEndpoint("mock:quote");
+                        mock.expectedMessageCount(2);
+                        mock.message(0).body().contains("Camel");
+                        mock.message(1).body().contains("Camel");
+
+                        template.sendBody("jms:topic:quote", "Hello Camel");
+                        template.sendBody("jms:topic:quote", "Camel rocks");
+
+                        assertMockEndpointsSatisfied();
+                    }
+                    ```
+                    ```
+                    mock.message(0).header("JMSPriority").isEqualTo(4);
+                    ```
+                  * allMessages() - Defines an expectation on all messages received
+                    ```
+                    mock.allMessages().body().contains("Camel");
+                    ```
+                  * expectsAscending(Expression expression) - Expects messages to arrive in ascending order
+                  * expectsDescending(Expression expression) - Expects messages to arrive in descending order
+                  * expectsDuplicates(Expression expression) - Expects duplicate messages
+                  * expectsNoDuplicates(Expression expression) - Expects no duplicate messages
+                  * expects(Runable runable) - Defines a custom expectation
+              * Builder methods for creating predicates to be used as expectations
+                * contains(Object value) - Sets an expectation that the message body contains the given value
+                * isInstanceOf(Class type)	- Sets an expectation that the message body is an instance of the given type
+                * startsWith(Object value)	- Sets an expectation that the message body starts with the given value
+                * endsWith(Object value)	- Sets an expectation that the message body ends with the given value
+                * in(Object... values)	- Sets an expectation that the message body is equal to any of the given values
+                * isEqualTo(Object value)	- Sets an expectation that the message body is equal to the given value
+                * isNotEqualTo(Object value)	- Sets an expectation that the message body isn’t equal to the given value
+                * isGreaterThan(Object value)	- Sets an expectation that the message body is greater than the given value
+                * isGreaterThanOrEqual(Object value)	- Sets an expectation that the message body is greater than or equal to the given value
+                * isLessThan(Object value)	- Sets an expectation that the message body is less than the given value
+                * isLessThanOrEqual(Object value)	- Sets an expectation that the message body is less than or equal to the given value
+                * isNull(Object value)	- Sets an expectation that the message body is null
+                * isNotNull(Object value)	- Sets an expectation that the message body isn’t null
+                * regex(String pattern)	- Sets an expectation that the message body matches the given regular expression
+                ```
+                 mock.message(0).header("JMSPriority").isEqualTo(4);
+                 mock.message(0).header("JMSPriority").isEqualTo("4");
+                 mock.allMessages().body().regex("^.*Camel.*\\.$");
+                 mock.allMessages().body().contains("Camel");
+                 mock.allMessages().body().endsWith(".");
+                ```
+            * Testing order of messages
+              ```
+               mock.expectsAscending(header("Counter"));
+              ```
+              * The above does not dictate what the starting value must be
+              * To test first message must have a value of 1
+                ```
+                 mock.message(0).header("Counter").isEqualTo(1);
+                 mock.expectsAscending(header("Counter"));
+                ```
+                * the above will not detect gaps in the sequence i.e it is valid either order- *1,2,3..* or *1,2,4,6,8...*
+                  * to overcome this we can use *custom expression*
+                    ```
+                     @Test
+                     public void testGap() throws Exception {
+                      final MockEndpoint mock = getMockEndpoint("mock:quote");
+                      mock.expectedMessageCount(3);
+                      mock.expects(new Runnable() {
+                        public void run() {
+                          int last = 0;
+                          for(Exchange exchange : mock.getExchanges()) {
+                            int current = exchange.getIn().getHeader("Counter", Integer.class);
+                            if(current <= last) {
+                              fail("Counter is not greater than last counter");                              
+                            } else if (current - last != 1) {
+                              fail("Gap detected : last: " + last + " current: " + current);
+                            }
+                            last = current;
+                          }
+                        }
+                      });
+                      
+                      template.sendBodyAndHeader("jms:topic:quote" , "A", "Counter" , 1);
+                      template.sendBodyAndHeader("jms:topic:quote" , "B", "Counter" , 2);
+                      template.sendBodyAndHeader("jms:topic:quote" , "C", "Counter" , 4);
+                      
+                      mock.assertIsNotSatisfied();
+                      
+                      template.sendBodyAndHeader("seda:topic:quote", "A", "Counter", 1);
+                      template.sendBodyAndHeader("seda:topic:quote", "B", "Counter", 2);
+                      template.sendBodyAndHeader("seda:topic:quote", "C", "Counter", 3);
+
+                      mock.assertIsSatisfied();
+                     }
+                    ```
+          * Using mocks to simulate real components
+            * methods to control responses when simulating a real component
+              * whenAnyExchangeReceived (Processor processor)	- Uses a custom processor to set a canned reply
+              * whenExchangeReceived (int index, Processor processor)	- Uses a custom processor to set a canned reply when the n’th message is received
 
 
 https://github.com/camelinaction/camelinaction
