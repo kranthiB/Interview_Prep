@@ -26,7 +26,9 @@
       |   YARN    | yarn.resourcemanager.hostname | N/A | localhost | resourcemanager |
       |   YARN    | yarn.nodemanager.aux-services | N/A | mapreduce_shuffe | mapreduce_shuffle |
   
+  * The default config directory is etc/hadoop. If want can change using the environment variable - **HADOOP_CONF_DIR**
   * **start-dfs.sh** - starts Namenode / Datanode / SecondaryNamenode
+    (Note: have to set JAVA_HOME in hadoop-env.sh file)
     * Check the status by
       * jps (or)
       * http://localhost:50070/ or http://localhost:8042/
