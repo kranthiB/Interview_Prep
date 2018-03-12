@@ -38,7 +38,7 @@
     * Check the status by
       * jps (or)
       * http://localhost:19888/
-  * **mr-jobhistory-daemon.sh stop historyserver** - Stops history server\
+  * **mr-jobhistory-daemon.sh stop historyserver** - Stops history server
   * **stop-yarn.sh** - Stops Nodemanager / ResourceManager
   * **stop-dfs.sh** - Stops Namenode / Datanode / SecondaryNamenode
   
