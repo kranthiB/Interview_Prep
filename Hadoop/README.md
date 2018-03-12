@@ -16,8 +16,8 @@
           * Hadoop daemons run on the single machine
       * Fully distributed mode
           * Hadop daemons run on a cluster of machines
-  * Key configuration properties for differnt modes
-
+  * Key configuration properties for different modes
+  
       | Component | Property | Standalone | Pseudodisributed | Fully Distributed |
       | --------- | -------- | ---------- | ---------------- | ----------------- |
       |   Common  | fs.defaultFS | file:/// (default) | hdfs://localhost/ | hdfs://namenode/ |
@@ -25,3 +25,21 @@
       | MapReduce | mapreduce.framework.name | local | yarn | yarn |
       |   YARN    | yarn.resourcemanager.hostname | N/A | localhost | resourcemanager |
       |   YARN    | yarn.nodemanager.aux-services | N/A | mapreduce_shuffe | mapreduce_shuffle |
+  
+  * **start-dfs.sh** - starts Namenode / Datanode / SecondaryNamenode
+    * Check the status by
+      * jps (or)
+      * http://localhost:50070/ or http://localhost:8042/
+  * **start-yarn.sh** - Starts Nodemanager / Resourcemanager
+    * Check the status by
+      * jps (or)
+      * http://localhost:8088/
+  * **mr-jobhistory-daemon.sh start historyserver**  - Starts history server
+    * Check the status by
+      * jps (or)
+      * http://localhost:19888/
+  * **mr-jobhistory-daemon.sh stop historyserver** - Stops history server\
+  * **stop-yarn.sh** - Stops Nodemanager / ResourceManager
+  * **stop-dfs.sh** - Stops Namenode / Datanode / SecondaryNamenode
+  
+  
