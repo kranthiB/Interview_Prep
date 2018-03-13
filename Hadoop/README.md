@@ -44,4 +44,18 @@
   * **stop-yarn.sh** - Stops Nodemanager / ResourceManager
   * **stop-dfs.sh** - Stops Namenode / Datanode / SecondaryNamenode
   
-  
+### Meet Hadoop ###
+ * 1 Zettabyte = 10^21 bytes = 1000 exabytes = 1M petabytes = 1B terabytes
+ * Hadoop enables reliable, scalable platform for storage(replication) and analysis(MapReduce framework)
+ * MapReduce = brite-force approach - batch processing system
+ * YARN (Yet Another Resource negotiator) - realtime distributed computations (like HBase - interactive analysis) not just MapReduce to run on data in a Hadoop cluster
+ * **Processing Patterns (run on Hadoop)**
+   * **Interactive SQL** - to achieve low latency reponses for SQL queries on Hadoop
+     * "always-on" daemon like Impala
+     * Container reuse like Hive on Tez
+   * **Iterative Processing**
+     * Spark - enables a hihgly exploratory style of working with datasets
+   * **Spark Streaming** - real-time distributed computations
+     * Storm, Spark Streaming , Samza
+   * **Search**
+     * Solr - indexing documents that are added to HDFS, serving search queries from indexes stored in HDFS
