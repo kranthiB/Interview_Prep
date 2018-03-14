@@ -68,22 +68,22 @@
      * Lots of small files
        * limit to number of files is governed by amount of memory on the namenode.
      * Multiple writers, arbitrary file modifications
-   * **Concepts**
-     * **Blocks**
-       * Seek Time
-         * is the process of moving the disk's head to a particular place on the disk to read or write data. 
-         * it characterizes the latency of disk operation
-       * Transfer rate
-         * amount of data that can be transmitted in fixed amount of time
-         * it characterizes the disk bandwidth
-       * Default block size is 128MB
-       * Files in HDFS are broken into block-sized chunks
-       * Reason for large blocks in HDFS is to minimize the cost of seeks
-       * **Benefits of block abstractin**
-         * file can be larger than any single disk on the network
-         * Simplifies the storage subsystem
-            * as blocks are fixed sizes , it is easy to calculate how many can be stored on a given disk
-            * eliminates the metadata concern
-              * file metadata such as permissions information does not need to be stored with the blocks
-         * blocks fit well with replication for providing fault tolerance and avaiiability
-       * Command to list the blocks - **hdfs fsck / -files -blocks**
+ * **Concepts**
+   * **Blocks**
+     * Seek Time
+       * is the process of moving the disk's head to a particular place on the disk to read or write data. 
+       * it characterizes the latency of disk operation
+     * Transfer rate
+       * amount of data that can be transmitted in fixed amount of time
+       * it characterizes the disk bandwidth
+     * Default block size is 128MB
+     * Files in HDFS are broken into block-sized chunks
+     * Reason for large blocks in HDFS is to minimize the cost of seeks
+     * **Benefits of block abstractin**
+       * file can be larger than any single disk on the network
+       * Simplifies the storage subsystem
+          * as blocks are fixed sizes , it is easy to calculate how many can be stored on a given disk
+          * eliminates the metadata concern
+            * file metadata such as permissions information does not need to be stored with the blocks
+       * blocks fit well with replication for providing fault tolerance and avaiiability
+     * Command to list the blocks - **hdfs fsck / -files -blocks**
