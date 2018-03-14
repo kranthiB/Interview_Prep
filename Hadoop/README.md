@@ -59,3 +59,13 @@
      * Storm, Spark Streaming , Samza
    * **Search**
      * Solr - indexing documents that are added to HDFS, serving search queries from indexes stored in HDFS
+
+### Hadoop Distributed File System ###
+ * **Design**
+   * for storing **very large files** with **streaming data access patterns**(write once, read many times), running on clusters of **commodity hardware**.
+   * **Not Fit** in case of
+     * Low Latency responses
+     * Lots of small files
+       * limit to number of files is governed by amount of memory on the namenode.
+     * Multiple writers, arbitrary file modifications
+   
