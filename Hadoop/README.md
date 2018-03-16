@@ -79,7 +79,7 @@
      * Default block size is 128MB
      * Files in HDFS are broken into block-sized chunks
      * Reason for large blocks in HDFS is to minimize the cost of seeks
-     * **Benefits of block abstractin**
+     * **Benefits of block abstraction**
        * file can be larger than any single disk on the network
        * Simplifies the storage subsystem
           * as blocks are fixed sizes , it is easy to calculate how many can be stored on a given disk
@@ -87,3 +87,25 @@
             * file metadata such as permissions information does not need to be stored with the blocks
        * blocks fit well with replication for providing fault tolerance and avaiiability
      * Command to list the blocks - **hdfs fsck / -files -blocks**
+   * **Namenodes and Datanodes**
+     * HDFS cluster has 2 types of nodes (operates in master-worker pattern)
+       * a Namenode (master)
+         * manages the filesystem namespace
+         * maintains the filesystem tree and the metadata for all the files and directories in the tree.
+         * information is stored on the local disk in the form of two files
+           * the namespace image
+           * the edit log
+         * also knows the datanodes
+           * but it does not store block locations persistently
+             * this information is reconstructed from the datanodes when system starts
+         * Resilient to failure
+           * Hadoop provide two mechanisms
+             * persist state to multiple filesystems
+               * to write to local disk as well as remote NFS mount
+             * secondary namenode
+               * periodically merge the namespace image with the edit log to prevent the edit log from becoming too large
+               * keeps a copy of merged namespace image
+       * a number of datanodes (workers)
+         * workhorses of the file system
+           * store and retrieve te blocks when they are told to (by clients or namenode)
+         * periodically, they report back to Namenode with the list of blocks that they are storing
