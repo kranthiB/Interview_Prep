@@ -135,3 +135,10 @@
       * Two choices for HA shared storage
         * NFS filer
         * Quorum journal manager (QJM)  - its recommended - runs a group of journal nodes
+      * Failover and fencing
+        * Transition from active to standby is managed by a new entity called the *failover controller*
+          * it uses Zookeeper
+          * types of failover
+            * Graceful failover
+            * Ungraceful failover
+        * By using method called *fencing*, it ensures that the previously active namenode is prevented from doing any damage and causing corruption
