@@ -114,4 +114,15 @@
         * By default, a block is cached in only one datanode's memory, although number is configurable on a per-file basis
       * Can instruct namenode which files to cache(and for how long) by adding *cache directive* to a *cache pool*
         * Cache pools are an administrative grouping for managing cache permissions and resource usage.
-    
+    * **HDFS Federation**
+      * Allows cluster to scale by adding namenodes, each of which manages a portion of the filesystem namespace
+        * For example, one namenode might manage all the files rooted under /user, say, and a second namenode might handle files under /share
+      * Under federation , namenode manages
+        * *namespace volume* - metadata for the namenode
+        * *block pool* - all the blocks for the files in the namespace
+          * block pool storage is not paritioned
+            * however, datanodes register with each namenode in the cluster can store blocks from multiple block pools
+      * One namenode do not communication with another in the cluster
+      * Access federated HDFS cluster
+        * Clients use client-side mount tables to map file paths to namenodes
+          * this is managed in configuration using *ViewFileSystem* and the *viewfs://* URIs
