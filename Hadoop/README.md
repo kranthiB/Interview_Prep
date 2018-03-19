@@ -126,3 +126,12 @@
       * Access federated HDFS cluster
         * Clients use client-side mount tables to map file paths to namenodes
           * this is managed in configuration using *ViewFileSystem* and the *viewfs://* URIs
+    * **HDFS High Availability (HA)**
+      * In this there are two pair of namenodes in an active-standby configuration. A few architectural changes are needed to allow this to happen
+        * shared storage to share the edit log
+        * datanodes must send block reports to both namenodes because the block mapping are stored in a namenode's memory, and not on disk
+        * clients must be configured to handle namenode failover
+        * secondary namenode's role is subsumed by the standby
+      * Two choices for HA shared storage
+        * NFS filer
+        * Quorum journal manager (QJM)  - its recommended - runs a group of journal nodes
