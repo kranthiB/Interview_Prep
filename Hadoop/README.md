@@ -109,3 +109,9 @@
          * workhorses of the file system
            * store and retrieve te blocks when they are told to (by clients or namenode)
          * periodically, they report back to Namenode with the list of blocks that they are storing
+    * **Block Caching**
+      * For frequent access, blocks explicitly cached in an off-heap *block cache*
+        * By default, a block is cached in only one datanode's memory, although number is configurable on a per-file basis
+      * Can instruct namenode which files to cache(and for how long) by adding *cache directive* to a *cache pool*
+        * Cache pools are an administrative grouping for managing cache permissions and resource usage.
+    
