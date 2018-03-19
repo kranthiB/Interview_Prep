@@ -173,4 +173,20 @@
         * *dfs.permissions.enabled* 
           * whether to check permissions or not
           * superuser - identity of the namenode process - permissions check not performed for superuser
+  * **Hadoop Filesystems**
+    * Java abstract class - *org.apache.hadoop.fs.FileSystem*
+      
+      | Filesystem | URI scheme | Javaimplemetation (all under *org.apache.hadoop*) | Description |
+      | ---------- | ---------- | ----------------- | ----------- |
+      | Local | file | fs.LocalFileSystem |  with client-side checksums. *RawLocalFileSystem* with no checksums |
+      | HDFS | hdfs | hdfs.DistributedFileSystem | designed to work efficiently in conjunction with MapReduce |
+      | WebHDFS | webhdfs | hdfs.web.WebHdfsFileSystem | authenticated read/write access to HDFS over HTTP |
+      | Secure WebHDFS | swebhdfs | hdfs.web.SWebHdfsFileSystem | HTTPS version of WebHDFS |
+      | HAR | har | fs.HarFileSystem | A filesystem layered on another filesystem for archiving files. Hadoop archives lot of files in to a single archive file to reduce namenode's memory usage. Command - *hadoop archive* |
+      | View | viewfs | viewfs.ViewFileSystem | used to create mount points for federated namenodes |
+      | FTP | ftp | fs.ftp.FTPFileSystem | backed by an FTP server |
+      | S3 | s3 | fs.s3a.S3AFileSystem | backed by Amazon S3 |
+      | Azure | wasb | fs.azure.NativeAzureFileSystem | backed by Microsoft Azure |
+      | Swift | swift | fs.swift.snative.SwiftNativeFileSystem | backed by OpenStack Swift |
+      
         
