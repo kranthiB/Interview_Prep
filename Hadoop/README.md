@@ -142,3 +142,35 @@
             * Graceful failover
             * Ungraceful failover
         * By using method called *fencing*, it ensures that the previously active namenode is prevented from doing any damage and causing corruption
+    * **Command line interface**
+      * **Basic Filesystem operations**
+        * Copy file from local filesystem to HDFS
+          * hadoop fs -copyFromLocal <local-file-path> hdfs://namenode/<hdfs-file-path>
+          * hadoop fs -copyFromLocal <local-file-path> <hdfs-file-path>
+          * hadoop fs -copyFromLocal <local-file-path> <file-name> (copies the file to user home directory)
+        * Copy file to local filesystem
+          * hadoop fs -copyToLocal <hdfs-filepath> <local-file-path>
+          * (check MD5 digest same or not using md5 <original-file> <copied-file>) 
+        * hadoop fs -mkdir books
+        * hadop fs -ls .
+          * In output
+            * column-1 = File mode 
+            * column-2 = Replication factor of the file (for directories, value will be empty)
+            * column-3 = owner
+            * column-4 = group
+            * column-5 = size of file in bytes or zero for directories
+            * column-6 = last modification date
+            * column-7 = last modification time
+            * column-8 = name of the file or directory
+      * File permissions in HDFS
+        * much like POSIX model
+        * three types of permissions
+          * r - read
+          * w - write
+          * x - execute
+            * this is ignored for file because can't execute a file on HDFS (unlike POSIX)
+            * required for directory to access its children
+          * *dfs.permissions.enabled* 
+            * whether to check permissions or not
+            * superuser - identity of the namenode process - permissions check not performed for superuser
+          
