@@ -223,6 +223,9 @@
           InputStream in = new URL("hdfs://<host>/<path>").openStream();
       ```
     * **Reading data using the FILESYSTEM API**
+  * **Data Flow**
+    * **Anatomy of a File Read**
+      
       
             
       
