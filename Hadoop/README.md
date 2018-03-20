@@ -225,7 +225,7 @@
     * **Reading data using the FILESYSTEM API**
   * **Data Flow**
     * **Anatomy of a File Read**
-      ![anatomy of a file read](https://user-images.githubusercontent.com/20100300/37658250-1e5e03e2-2c73-11e8-8a4f-0d25597bfa5b.png)
+      ![anatomy of a file read](https://user-images.githubusercontent.com/20100300/37658582-e25d53a6-2c73-11e8-9c6b-3112b50f960a.png)
 
       
       
