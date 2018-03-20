@@ -229,12 +229,13 @@
       * Datanodes are sorted according to their proximity of the client(i.e topology of the cluster's network)
       * If client itself a datanode then client will read from the local datanode if it hosts a copy of the block - *Short-circuit local reads*
       * This design allows HDFS to scale a large number of concurrent clients 
-    * Network Topology and Hadoop
+    * **Network Topology and Hadoop**
       * Network is represened as a tree and the distance between two nodes is the sum of their distances to the closest common ancestor
         * distance(/d1/r1/n1, /d1/r1/n1) = 0 (processes on the same node)
         * distance(/d1/r1/n1, /d1/r1/n2) = 2 (different nodes on the same rack)
         * distance(/d1/r1/n1, /d1/r2/n3) = 4 (nodes on different racks in the same data center)
         * distance(/d1/r1/n1, /d3/r3/n4) = 6 (nodes in different data centers)
+    * **Anatomy of a File Write**
 
       
       
