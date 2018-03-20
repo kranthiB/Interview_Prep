@@ -189,4 +189,33 @@
       | Azure | wasb | fs.azure.NativeAzureFileSystem | backed by Microsoft Azure |
       | Swift | swift | fs.swift.snative.SwiftNativeFileSystem | backed by OpenStack Swift |
       
+      (Hint: To process large volumes of data while running MapReduce programs , its good to choose a distributed filesystem that has data locality optimization, notably HDFS)
+  * **Interfaces**
+    * **HTTP**
+      * HTTP interface is slower than the native Java client
+      * Two ways of accessing HDFS over HTTP (both use the WebHDFS protocol)
+        * Directly
+          * HDFS daemons serve HTTP requests to client
+          * embedded webservers in the namenodes and datanodes act as WebHDFS endpoints
+          * enabled by default - *dfs.webhdfs.enabled*
+          * File metadata operations are handled by the namenode
+          * File read and write operations
+            * sent first to namenode which sends and HTTP redirect to the the client indicating the datanode to stream file data from or to.
+        * via a proxy(or proxies)
+          * access HDFS on the client's behalf using the usual *DistributedFileSystem* API
+          * relies on one or more standalone proxy servers
+            * proxies are stateless
+            * can rubn behind a standalone load balancer
+          * client never access the namenode or datanode directly as all traffic passes through the proxy
+          * HttpFs proxy
+            * exposes same HTTP and HTTPS interface as WebHDFS so clients can access both using webhdfs or swebhdfs
+            * its started independently of the namenode and datanode daemons
+            * defaultly listen on port - 14000
+    * **C**
+    * **NFS**
+    * **FUSE**
+  * **Java Interface**
+      
+            
+      
         
