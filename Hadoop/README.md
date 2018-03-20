@@ -213,8 +213,16 @@
             * defaultly listen on port - 14000
     * **C**
     * **NFS**
-    * **FUSE**
+    * **FUSE** 
   * **Java Interface**
+    * **Reading data from Hadoop URL**
+      ```
+          static {
+             URL.setURLStreamHandlerFactory(new FsUrlStreamHandlerFactory());
+          }
+          InputStream in = new URL("hdfs://<host>/<path>").openStream();
+      ```
+    * **Reading data using the FILESYSTEM API**
       
             
       
