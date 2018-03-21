@@ -257,7 +257,28 @@
           * write bandwidth(writes only have to traverse a single network switch)
           * read performance(there's a choice of two racks to read from)
           * block distribution across the cluster(clients only write a single block on the local rack)
-
+    * **Coherency model**
+      * this model for a file system describes the data visibility of reads and writes for a file.
+      * creating a file is visible in the filesystem namespace
+        ```
+         fs.create(new Path("p"))
+        ```
+      * writing to a file 
+        * **out.flush()** 
+          * is not guaranteed to be visible
+          * once more than a block's worth of data has been written, the first block will be visible to new readers
+          * it is always current block being written is not visible to other readers
+        * **out.hflush()** - 
+          * data written up to that point in the file has reached all the datanodes in the write pipeline and is visible to all new readers
+          * it does not guarantee that the datanodes have written the data to the disk, only that it's in the datanode memory
+        * **out.hsync()**
+          * this stores the data to the datanode's disk
+        * **out.close()**
+          * peforms implicit hflush()
+      * consequences for application design
+        * an acceptable trade-off to use of *flush()* / *hflush()* / *hsync()*  is an application dependent which varies between data robustness and throughput
+        * suitable values can be selected after measuring performance with different *hflush()* or *hsync()* frequencies.
+          
       
       
             
