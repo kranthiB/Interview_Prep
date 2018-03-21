@@ -236,6 +236,7 @@
         * distance(/d1/r1/n1, /d1/r2/n3) = 4 (nodes on different racks in the same data center)
         * distance(/d1/r1/n1, /d3/r3/n4) = 6 (nodes in different data centers)
     * **Anatomy of a File Write**
+      ![anatomy of file write](https://user-images.githubusercontent.com/20100300/37703367-76c97842-2d1b-11e8-94e9-724e4c4abc19.png)
 
       
       
