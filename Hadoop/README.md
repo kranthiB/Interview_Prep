@@ -247,6 +247,16 @@
       * if multiple datanodes fail while a block is being written
         * write will succeed as long as *dfs.namenode.replication.min.replicas*(which defaults to 1) are written
         * block will be asyncronously replicated across the cluster until its target repliation factor(*dfs.replication*) is reached
+      * Replica placement strategy
+        * first replica on the same node
+        * second replica is placed on a different rack from the first (off-rack), chosen at random
+        * third replica is placed on the same rack as the second, but on a different node chosen at random
+        * further replicas are placed on random nodes in the cluster
+        * this strategy gives a good balance among
+          * reliability(blocks are stored on different racks)
+          * write bandwidth(writes only have to traverse a single network switch)
+          * read performance(there's a choice of two racks to read from)
+          * block distribution across the cluster(clients only write a single block on the local rack)
 
       
       
