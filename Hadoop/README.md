@@ -237,6 +237,16 @@
         * distance(/d1/r1/n1, /d3/r3/n4) = 6 (nodes in different data centers)
     * **Anatomy of a File Write**
       ![anatomy of file write](https://user-images.githubusercontent.com/20100300/37703367-76c97842-2d1b-11e8-94e9-724e4c4abc19.png)
+      * If datanode fails while data is being written
+        * pipeline is closed 
+        * any packets in the *ack queue* are added to the *data queue*
+        * current block on the good datanode is given a new identity, which is communicated to the namenode
+        * failed datanode is removed from the pipeline
+        * new pipeline is constructed from the good datanodes
+        * remainder of block's data is written to good datanodes in the pipeline
+      * if multiple datanodes fail while a block is being written
+        * write will succeed as long as *dfs.namenode.replication.min.replicas*(which defaults to 1) are written
+        * block will be asyncronously replicated across the cluster until its target repliation factor(*dfs.replication*) is reached
 
       
       
