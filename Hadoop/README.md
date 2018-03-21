@@ -278,9 +278,30 @@
       * consequences for application design
         * an acceptable trade-off to use of *flush()* / *hflush()* / *hsync()*  is an application dependent which varies between data robustness and throughput
         * suitable values can be selected after measuring performance with different *hflush()* or *hsync()* frequencies.
-  * **Parallel Copying with distcp**  
-          
-      
+  * **Parallel Copying with distcp**
+    * Copy one file to another
+      ```
+       hadoop distcp file1 file2
+      ```
+    * Copy directories
+      ```
+       hadoop distcp dir1 dir2
+      ```
+      * If dir2 does not exist, it will be created 
+      * If dir2 exists, dir1 will be copied under it - *dir2/dir1*
+        * to overwrite and keep the same directory structure use option *-overwrite*
+        * to update only the files changed use option *-update*
+    * *distcp* is implemented as a MapReduce job
+      * work of copying is done by maps that run in parallel across the cluster
+      * no reducers
+      * tries to give each map same amount of data
+      * by default, up to 20 maps are used, this can be changed by specifying *-m* argument
+      * hadoop distcp -update -delete -p hdfs://namenode1/foo hdfs://namenode2/foo
+        *  *-delete* to remove the files or directories that are not present in the source
+        * *-p* - file status attributes like permissions, block size, and replication are preserved
+      * if two clusters are running incompatible versions of HDFS, we can use *webhdfs* protocol
+        * hadoop distcp webhdfs://namenode1:50070/foo webhdfs://namenode2:50070/foo
+      * use the *balancer* tool to subsequently even out the distributions across the cluster
       
             
       
