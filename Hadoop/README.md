@@ -278,6 +278,7 @@
       * consequences for application design
         * an acceptable trade-off to use of *flush()* / *hflush()* / *hsync()*  is an application dependent which varies between data robustness and throughput
         * suitable values can be selected after measuring performance with different *hflush()* or *hsync()* frequencies.
+  * **Parallel Copying with distcp**  
           
       
       
