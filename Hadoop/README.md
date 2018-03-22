@@ -312,8 +312,40 @@
      * MR Application Master - coordinates the tasks running the MR job
        * Application master and MR tasks run in containers that are scheduled by resource manager and managed by node managers
      * DFS (normally HDFS) - used for sharing job files between the other entities.
-   ![anatomy of mr job run](https://user-images.githubusercontent.com/20100300/37778849-fc0add48-2e10-11e8-8784-3fc1e0c273ea.png)
-   
+   * ![anatomy of mr job run](https://user-images.githubusercontent.com/20100300/37778849-fc0add48-2e10-11e8-8784-3fc1e0c273ea.png)
+   * Streaming
+     * runs special map and reduce tasks
+     * communicates with the process(whic may be written in any language) using standard input and output streams
+     * During execution of task
+       * Java process passes input key-value pairs to the external process which runs it through the user-defined map or reduce function and passes the output key-value pairs back to the Java process
+   * Progress and status updates
+     * a job and each of its tasks have a status which includes
+       * state of job or task (running / successfully completed / failed)
+       * progress of maps and reduces
+         * For map tasks, this is the proportion of the input that has been processed
+         * For reduce tasks, it does by dividing the total progress in to three parts corresponding to the three phases of the shuffle
+         * what constitutes progress in MR?
+           * reading an input record (in a mapper or reducer)
+           * writing an output record(in a mapper or reducer)
+           * setting the status description (via Reporter's or TaskAttemptContect's setStatus() method)
+           * Incrementing a counter (via Reporter's incrCounter() method or Counter's increment() method)
+           * Calling Reporter's or TaskAttemptContext's progress() method
+       * values of the job's counters
+       * status message or description
+     * a task also have set of counters that count various events which are either built into or defined by users
+     * using *umbilical* interface , task reports its progress and status(including counters) back to its application master for every three seconds
+     * Resource manager web UI displays all the running application with
+       * links to web UIs of thier respective application masters and each will diplay
+         * details on the MR job including its progress
+     * During the course of the job, client receives the latest status by polling application master every second (the interval is set via *mapreduce.client.progressmonitor.pollinterval*)
+     * clients can also use Job's getStatus() method to obtain a JobStatus instance, which contains all of the status information for the job
+   * Job Completion
+     * applicaiton master changes the status to "successful" when the last task for a job is complete
+     * application master also sends HTTP job notification via the *mapreduce.job.end-notificaion.url*
+     * on job completion
+       * application master and task containers clean up their working state
+       * *OutputCommitter's* commitJob() method is called.
+       * Job information is archived by the job history server
       
             
       
