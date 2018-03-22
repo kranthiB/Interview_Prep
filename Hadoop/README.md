@@ -312,6 +312,7 @@
      * MR Application Master - coordinates the tasks running the MR job
        * Application master and MR tasks run in containers that are scheduled by resource manager and managed by node managers
      * DFS (normally HDFS) - used for sharing job files between the other entities.
+   ![anatomy of mr job run](https://user-images.githubusercontent.com/20100300/37778849-fc0add48-2e10-11e8-8784-3fc1e0c273ea.png)
    
       
             
