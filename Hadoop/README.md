@@ -302,6 +302,17 @@
       * if two clusters are running incompatible versions of HDFS, we can use *webhdfs* protocol
         * hadoop distcp webhdfs://namenode1:50070/foo webhdfs://namenode2:50070/foo
       * use the *balancer* tool to subsequently even out the distributions across the cluster
+
+### Map Reduce ###
+ * **Anatomy of a MapReduce Job Run**
+   * **Entities**
+     * Client - submits MapReduce job
+     * YARN Resource Manager - coordinates the allocation of compute resources on the cluster
+     * YARN Node Managers - launch and monitor the compute containers on machines in the cluster
+     * MR Application Master - coordinates the tasks running the MR job
+       * Application master and MR tasks run in containers that are scheduled by resource manager and managed by node managers
+     * DFS (normally HDFS) - used for sharing job files between the other entities.
+   
       
             
       
