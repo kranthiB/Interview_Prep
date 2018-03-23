@@ -391,7 +391,30 @@
        * default is automatic one which uses ZooKeeper leader election to ensure that there is only a single active RM.
        * this does not have a standalone process, and is embeded in the RM by default. (Separate process is possible but not receommended)
      * clients and node managers tries to connect RM in a round-robin fashion until standby becomes active.
-     
+ * **Shuffle and Sort**
+   * MR guarantees input to every reducer is sorted by key.
+   * shuffle - process by which the system performs the sort and transfers the map outputs to the reducers as inputs
+   * shuffle is the heart of MR
+   * **Map Side**
+     * map function do buffer writes in memory and do some presorting before it is written to disk
+     * each map has a circular memory buffer
+     * buffer is 100MB by default (can be tuned using *mapreduce.task.io.sort.mb*)
+     * buffer reaches threshold size(*mapreduce.map.sort.spill.percent, default is 0.80 or 80%), a background thread will start to spill the contents to disk
+     * map will continue to write the buffer while spill takes place but map blocks if buffer fills up.
+     * spills are written in round-robin fashion to the directories specified by *mapreduce.cluster.local.dir* or in a job specifc subdirectory
+     * before writes to disk,thread divides the data into partitions corresponding to reducers that they ultimately be sent to
+     * within each partition, background thread performs as in-memory sort by key
+     * if there is a combiner funtion, it is run on the output of the sort
+     * combiner function makes more compact map output, so less data write to disk and to transfer to the reducer
+     * on buffer reaches spill threshold, a new spill file is created
+     * these spill files are merged into a single partioned and sorted output file (*mapreduce.task.io.sort.factor* controls this merge process, default is 10).
+     * atleast 3 spill files (*mapreduce.map.combine.minspills*) , combiner is run again before output file is written
+     * compress map output (default, output is not compressed) - enable by *mapreduce.map.output.compress* and the library is specified by *mapreduce.map.output.compress.codec*
+     * output files are made available to the reducers over HTTP
+     * maximum number of worker threads used to serve file partitions is controlled by *mapreduce.shuffle.max.threads* (this setting is per node manager, not per map task)
+       * default of 0 sets the maximum number of threads to twice the number of processors on the machine.
+       
+         
        
       
             
