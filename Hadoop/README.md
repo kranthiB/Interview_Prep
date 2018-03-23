@@ -346,6 +346,24 @@
        * application master and task containers clean up their working state
        * *OutputCommitter's* commitJob() method is called.
        * Job information is archived by the job history server
+ * **Failures**
+   * **Task Failure**
+     * if an application(map or reduce task) throws a runtime exception, JVM reports error back to application master
+       * applicatin master marks the task attempt as *failed* and frees up the container
+     * if streaming task exists with a nonzero exit code, marked as failed. Governed by *stream.non.zero.exist.is.failure* property (default is true)
+     * sudden exit of the task JVM - due to JVM bug then node manager notices this and informs the application master s it can mark attempt as failed
+     * Hanging tasks
+       * application master hasn't received a progress update and proceeds to mark the task as failed
+       * timeout period is 10 minutes and can be configured on a per-job or cluster basis using *mapreduce.task.timeout* property in milliseconds
+         * timeout to a value of zero disables the timeout, so long-running tasks are never marked as failed
+     * If application master notified of a task attempt has failed
+       * reschedule execution of a task
+       * try to avoid rescheduling on a node manager where it previously failed
+       * if task fails four times, it will not be retried again
+         * value is configurable - *mapreduce.map.maxattempts* / *mapreduce.reduce.maxattempts*
+       * if task fails maximum number of attempts, the whole job fails
+         * if it is undesirable to abort a job if task fails then we can configure the maximum percentage of tasks that are alloed 
+       
       
             
       
