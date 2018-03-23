@@ -365,6 +365,16 @@
          * if it is undesirable to abort a job if task fails then we can configure the maximum percentage of tasks that are allowed to fail without triggering job failure using the *mapreduce.map.failures.maxpercent* / *mapreduce.reduce.failures.maxpercent* 
        * task fail can also be possible  - speculative execution / node manager failed / application master failed then the maximum number of attempts for map / reduce won't effect
        * users may kill task using web UI or the command line(*mapred job*)
+   * **Application Master Failure**
+     * maximum number of times to run a MapReduce application master is controlled by *mapreduce.am.max-attempts* (default is 2). If it fails twice then the job will fail
+     * Yarn imposes maximum number of attempts for any application in the cluster through *yarn.resourcemanager.am.max-attempts* (default is 2)
+       * if want to increase the MR application master attempts , this has to be increased too
+     * way of recovery
+       * AM sends periodic hearbeats to resource manager and in the event of failure RM will delete the failure and start a new instance of AM in a new container
+         * MR AM will use the job history to recover the state of the tasks
+         * it is configurable(default is true) through *yarn.app.mapreduce.am.job.recovery.enable*
+     * client will receive status through AM and the information is cached. On failure, it will experience a timeout and ask the RM for new instance of AM. It is transparent to user
+     
        
       
             
