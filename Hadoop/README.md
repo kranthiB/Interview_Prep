@@ -374,6 +374,11 @@
          * MR AM will use the job history to recover the state of the tasks
          * it is configurable(default is true) through *yarn.app.mapreduce.am.job.recovery.enable*
      * client will receive status through AM and the information is cached. On failure, it will experience a timeout and ask the RM for new instance of AM. It is transparent to user
+   * **Node Manager Failure**
+     * RM removes NM from its pool of nodes if it does not receive heartbeat for 10 minutes and this is configurable using *yarn.resourcemanager.nm.liveness-monitor.expiry-interval-ms* property
+     * For incompleted jobs, map tasks that were run on the node manager will rerun as their intermediate output residing on NM local file system may not be accessible to reduce task
+     * If number of failures for the application is high, NM is blacklisted (default is 3) and user can set the threshold with *mapreduce.job.maxtaskfailures.per.tracker* property.
+       * AM from new job can select bad nodes even if it is blacklisted by another AM of another job.
      
        
       
