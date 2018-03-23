@@ -362,7 +362,9 @@
        * if task fails four times, it will not be retried again
          * value is configurable - *mapreduce.map.maxattempts* / *mapreduce.reduce.maxattempts*
        * if task fails maximum number of attempts, the whole job fails
-         * if it is undesirable to abort a job if task fails then we can configure the maximum percentage of tasks that are alloed 
+         * if it is undesirable to abort a job if task fails then we can configure the maximum percentage of tasks that are allowed to fail without triggering job failure using the *mapreduce.map.failures.maxpercent* / *mapreduce.reduce.failures.maxpercent* 
+       * task fail can also be possible  - speculative execution / node manager failed / application master failed then the maximum number of attempts for map / reduce won't effect
+       * users may kill task using web UI or the command line(*mapred job*)
        
       
             
