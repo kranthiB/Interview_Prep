@@ -413,6 +413,17 @@
      * output files are made available to the reducers over HTTP
      * maximum number of worker threads used to serve file partitions is controlled by *mapreduce.shuffle.max.threads* (this setting is per node manager, not per map task)
        * default of 0 sets the maximum number of threads to twice the number of processors on the machine.
+   * **Reduce Side**
+     * copy phase 
+       * map task may finish at different times, so the reduce starts copying their outputs as soon as each completes.
+       * reduce has small number of copier threads so that it can fetch map outputs in parallel.(default is five or *mapreduce.reduce.shuffle.parallelcopies*
+       * this thread periodically asks AM for map hosts to know the machines where to fetch output
+       * these map hosts do not delete ouputs from disk as soon as first reducer has retrieved them 
+         * this will wait until told by AM which is after the job has completed.
+     * map outputs are copied to reduce task JVM' if they are small enough controlled by *mapreduce.reduce.shuffle.input.buffer.percent* which specifies the proportion of the heap to use for this purpose
+     * when in-memoruy reaches threshold size(*mapreduce.reduce.shuffle.merge.percent*) or threshold number of map outputs(*mapreduce.reduce.merge.inmem.threshold*), it is merged and spilled to disk.
+     * If a combiner is specified, it will be run during the merge to reduce amount of data written to disk
+     
        
          
        
