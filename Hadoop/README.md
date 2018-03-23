@@ -383,6 +383,14 @@
      * have to run in active-standby configuration to achieve high availabilty(HA)
      * information of all the running applications is stored in highly available state store(backed by zookeeper or HDFS)
        * NM information is not stored in the state store
+       * tasks are not part of RM's state since they are managed by AM
+     * on new resource starts
+       * reads application information from the state store
+       * restarts the AMs (does not count to *yarn.resourcemanager.am.max-attempts*)
+     * transition of a RM from standby to active is handled by failover controller
+       * default is automatic one which uses ZooKeeper leader election to ensure that there is only a single active RM.
+       * this does not have a standalone process, and is embeded in the RM by default. (Separate process is possible but not receommended)
+     * clients and node managers tries to connect RM in a round-robin fashion until standby becomes active.
      
        
       
