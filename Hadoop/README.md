@@ -379,6 +379,10 @@
      * For incompleted jobs, map tasks that were run on the node manager will rerun as their intermediate output residing on NM local file system may not be accessible to reduce task
      * If number of failures for the application is high, NM is blacklisted (default is 3) and user can set the threshold with *mapreduce.job.maxtaskfailures.per.tracker* property.
        * AM from new job can select bad nodes even if it is blacklisted by another AM of another job.
+   * **Resource Manager Failure**
+     * have to run in active-standby configuration to achieve high availabilty(HA)
+     * information of all the running applications is stored in highly available state store(backed by zookeeper or HDFS)
+       * NM information is not stored in the state store
      
        
       
