@@ -41,3 +41,17 @@ Add user to sudoers file
 -----------------------
 sudo adduser <username> sudo
 
+
+To find OS name and Version
+--------------------------
+cat /etc/*-release
+
+Memory Usage
+------------
+free -m
+cat /proc/meminfo
+vmstat -s
+top
+
+
+
