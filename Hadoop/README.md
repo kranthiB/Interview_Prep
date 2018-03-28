@@ -420,9 +420,14 @@
        * this thread periodically asks AM for map hosts to know the machines where to fetch output
        * these map hosts do not delete ouputs from disk as soon as first reducer has retrieved them 
          * this will wait until told by AM which is after the job has completed.
-     * map outputs are copied to reduce task JVM' if they are small enough controlled by *mapreduce.reduce.shuffle.input.buffer.percent* which specifies the proportion of the heap to use for this purpose
-     * when in-memoruy reaches threshold size(*mapreduce.reduce.shuffle.merge.percent*) or threshold number of map outputs(*mapreduce.reduce.merge.inmem.threshold*), it is merged and spilled to disk.
-     * If a combiner is specified, it will be run during the merge to reduce amount of data written to disk
+       * map outputs are copied to reduce task JVM' if they are small enough controlled by *mapreduce.reduce.shuffle.input.buffer.percent* which specifies the proportion of the heap to use for this purpose
+       * when in-memoruy reaches threshold size(*mapreduce.reduce.shuffle.merge.percent*) or threshold number of map outputs(*mapreduce.reduce.merge.inmem.threshold*), it is merged and spilled to disk.
+       * If a combiner is specified, it will be run during the merge to reduce amount of data written to disk
+       * Once copy to disk done. a background thread - merges them inyo larger, sorted files. If map outputs compressed by map tasks then they have to decompress before merging to sorted files.
+       * when all map outputs have been copied, reducer task moves to sort phase
+     * sort phase (merge phase)
+     
+    
      
        
          
