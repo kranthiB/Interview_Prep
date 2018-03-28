@@ -438,6 +438,10 @@
        * Reduce phase
          * round-5 : pending 6 in-memory files and above 4 rounds saved on to disk will feed to reduce function
      * Output of reduce task will written directly to the output filesystem
+   * Configuration Tuning
+     * amount of memory given to JVMs in map and reduce tasks is set by *mapred.child.java.opts* property (try to have as large as possible)
+     * map side, best performance obtained by avoiding multiple spills to disk
+     * reduce side, best performance obtained when intermediate data can reside entirely in memory.
      
     
      
