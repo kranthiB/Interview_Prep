@@ -426,6 +426,8 @@
        * Once copy to disk done. a background thread - merges them inyo larger, sorted files. If map outputs compressed by map tasks then they have to decompress before merging to sorted files.
        * when all map outputs have been copied, reducer task moves to sort phase
      * sort phase (merge phase)
+       * merging map outputs will done in rounds depending on *merge factor* (mapreduce.task.io.sort.factor, default is 10) property. If 50 map outputs and 10 merge factor then there will be five rounds
+       * 
      
     
      
