@@ -427,7 +427,8 @@
        * when all map outputs have been copied, reducer task moves to sort phase
      * sort phase (merge phase)
        * merging map outputs will done in rounds depending on *merge factor* (mapreduce.task.io.sort.factor, default is 10) property. If 50 map outputs and 10 merge factor then there will be five rounds
-       * 
+     * reduce phase
+       * final merge can come from a mixture of in-memory and on-disk segments as to reduce trip to disk it will directly feed to the reduce function
      
     
      
